@@ -188,6 +188,47 @@ def render_glossary_overview():
     )
 
 
+def generate_sample_csv_bytes(country_name: str) -> bytes:
+    """Generate or load sample CSV bytes for testing upload in cloud or local environments"""
+    path_map = {
+        "Benin (Malanville)": "data/benin-malanville.csv",
+        "Sierra Leone (Bumbuna)": "data/sierraleone-bumbuna.csv",
+        "Togo (Dapaong)": "data/togo-dapaong_qc.csv"
+    }
+    path_str = path_map.get(country_name, "")
+    if path_str and Path(path_str).exists():
+        try:
+            return pd.read_csv(path_str, nrows=3000).to_csv(index=False).encode('utf-8')
+        except Exception:
+            pass
+
+    # Fallback realistic sample data for Streamlit Cloud deployment where data/ is gitignored
+    import numpy as np
+    dr = pd.date_range("2023-01-01 00:00:00", periods=720, freq="h")
+    hours = dr.hour.values
+    solar_factor = np.maximum(0, np.sin((hours - 6) * np.pi / 12))
+    ghi = np.round(solar_factor * 850 + np.random.uniform(0, 30, len(dr)) * (solar_factor > 0), 1)
+    dni = np.round(solar_factor * 750 + np.random.uniform(0, 20, len(dr)) * (solar_factor > 0), 1)
+    dhi = np.round(np.maximum(0, ghi - dni * 0.7), 1)
+    tamb = np.round(22.0 + 8.0 * solar_factor + np.random.uniform(-1, 1, len(dr)), 1)
+    rh = np.round(80.0 - 35.0 * solar_factor + np.random.uniform(-3, 3, len(dr)), 1)
+    ws = np.round(1.5 + 2.5 * solar_factor + np.random.uniform(0, 1.2, len(dr)), 1)
+    
+    df_sample = pd.DataFrame({
+        "Timestamp": dr,
+        "GHI": ghi,
+        "DNI": dni,
+        "DHI": dhi,
+        "Tamb": tamb,
+        "RH": rh,
+        "WS": ws,
+        "WSgust": np.round(ws * 1.35, 1),
+        "ModA": np.round(ghi * 0.98, 1),
+        "ModB": np.round(ghi * 0.96, 1)
+    })
+    return df_sample.to_csv(index=False).encode('utf-8')
+
+
 def main():
     """Main application function"""
     
@@ -306,29 +347,21 @@ def main():
             col_s1, col_s2, col_s3 = st.columns(3)
             
             sample_files = [
-                ("Benin (Malanville)", "data/benin-malanville.csv", "sample_benin_malanville.csv"),
-                ("Sierra Leone (Bumbuna)", "data/sierraleone-bumbuna.csv", "sample_sierraleone_bumbuna.csv"),
-                ("Togo (Dapaong)", "data/togo-dapaong_qc.csv", "sample_togo_dapaong.csv")
+                ("Benin (Malanville)", "sample_benin_malanville.csv"),
+                ("Sierra Leone (Bumbuna)", "sample_sierraleone_bumbuna.csv"),
+                ("Togo (Dapaong)", "sample_togo_dapaong.csv")
             ]
             
-            for (label, path_str, export_name), col in zip(sample_files, [col_s1, col_s2, col_s3]):
+            for (label, export_name), col in zip(sample_files, [col_s1, col_s2, col_s3]):
                 with col:
-                    p = Path(path_str)
-                    if p.exists():
-                        try:
-                            sample_df = pd.read_csv(p, nrows=3000)
-                            sample_csv = sample_df.to_csv(index=False).encode('utf-8')
-                            st.download_button(
-                                label=f"📥 {label}",
-                                data=sample_csv,
-                                file_name=export_name,
-                                mime="text/csv",
-                                width="stretch"
-                            )
-                        except Exception:
-                            st.caption(f"{label} dataset")
-                    else:
-                        st.caption(f"{label} dataset")
+                    sample_bytes = generate_sample_csv_bytes(label)
+                    st.download_button(
+                        label=f"📥 {label}",
+                        data=sample_bytes,
+                        file_name=export_name,
+                        mime="text/csv",
+                        width="stretch"
+                    )
 
         # Prominent callout answering Question 1: Does it receive any other CSV files?
         st.markdown("""
