@@ -37,18 +37,15 @@ Then access from your mobile/tablet using your computer's IP address.
 
 ## 📊 Using the Dashboard
 
-### Loading Data
+### Loading Data (Upload Required)
 
-#### Option 1: Upload CSV File
-1. Select "Upload CSV File" in the sidebar
-2. Click "Browse files"
-3. Upload your cleaned solar data CSV
+When you run `streamlit run app/main.py`, data from CSV files is **not** displayed automatically. All data, graphs, charts, and other visualizations are only displayed after uploading a CSV file.
 
-#### Option 2: Use Local Path
-1. Select "Use Local Path" in the sidebar
-2. Choose a country (Benin, Sierra Leone, or Togo)
-3. Click "📂 Load Data"
-4. Or enter a custom path
+#### How to Upload:
+1. Open the dashboard at `http://localhost:8501`.
+2. In the sidebar under **📤 Upload CSV Dataset** (or in the center upload dropzone), click **Browse files** or drag & drop any solar/meteorological CSV file.
+3. *Don't have a dataset handy?* Expand **"Need sample datasets to test upload?"** on the landing screen, download a sample CSV (Benin, Sierra Leone, or Togo), and upload it.
+4. Once uploaded, all 7 analysis tabs, graphs, charts, and visualizations are instantly rendered.
 
 ### Exploring Visualizations
 

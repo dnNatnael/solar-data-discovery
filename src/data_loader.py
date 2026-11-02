@@ -665,5 +665,5 @@ def get_top_hours(df: pd.DataFrame, metric: str, top_n: int = 10) -> pd.DataFram
         return pd.DataFrame()
         
     top_df = valid_data.nlargest(top_n, metric)[['Timestamp', metric]].copy()
-    top_df.reset_index(drop=True, inplace=True)
+    top_df = top_df.reset_index(drop=True)
     return top_df

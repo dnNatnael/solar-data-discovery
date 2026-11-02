@@ -101,12 +101,10 @@ The dashboard will automatically open in your default web browser at `http://loc
 The dashboard provides the following interactive features:
 
 #### 🎛️ **Sidebar Controls**
-- **Data Source Selection**: Choose from 4 flexible options:
-  - 📂 **Preloaded Country Datasets**: Instant access to Benin, Sierra Leone, and Togo
-  - 📤 **Upload Any CSV File**: Drag & drop any solar or meteorological CSV file from any country or station worldwide
-  - 📁 **Discovered CSVs in `data/`**: Automatically detects all `.csv` files placed in the `data/` folder
-  - 📝 **Custom File Path**: Enter any local filesystem path
-- **Metric Selection**: Multi-select to choose one or more metrics (GHI, DNI, DHI, Tamb, WS, etc.) for analysis
+- **Upload CSV Dataset**: On launch, data from CSV files is **not** displayed automatically. All data, graphs, charts, and visualizations are rendered only after the user uploads a CSV file.
+  - 📤 **Upload Any CSV File**: Drag & drop any solar or meteorological CSV dataset from any region, station, or country (Benin, Sierra Leone, Togo, NASA POWER, NREL NSRDB, PVGIS, Solargis, etc.) via sidebar or the landing dropzone.
+  - 📥 **Sample Datasets Available**: Convenient one-click download buttons for sample datasets (Benin, Sierra Leone, Togo) to test uploading immediately.
+- **Metric Selection**: Multi-select to choose one or more metrics (GHI, DNI, DHI, Tamb, WS, etc.) for analysis (appears once data is uploaded)
 - **Date Range Filter**: Filter records interactively by date
 - **Dataset Information**: Summary record counts, column counts, and timestamp spans
 - **Sidebar Abbreviations Glossary**: Quick expandable lookup for abbreviations while navigating any tab

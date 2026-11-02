@@ -201,99 +201,46 @@ def main():
     st.sidebar.title("⚙️ Dataset Configuration")
     st.sidebar.markdown("---")
     
-    # Dataset Selection Method
-    st.sidebar.subheader("📍 Data Source")
+    # Dataset Upload in Sidebar
+    st.sidebar.subheader("📤 Upload CSV Dataset")
+    st.sidebar.markdown(
+        "Upload any solar or meteorological CSV dataset to begin analysis and visualization."
+    )
     
-    data_source_mode = st.sidebar.radio(
-        "Choose Data Source:",
-        [
-            "📂 Preloaded Countries (Benin, Sierra Leone, Togo)",
-            "📤 Upload Any CSV File",
-            "📁 Discovered CSVs in data/ folder",
-            "📝 Enter Custom File Path"
-        ],
-        help="You can load pre-configured country datasets, upload any CSV file from any country, or point to any local file."
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload CSV File:",
+        type=['csv', 'txt', 'tsv'],
+        help="Upload solar irradiance, weather station, PV system, or meteorological CSV file (Benin, Sierra Leone, Togo, or any station worldwide)",
+        key="sidebar_csv_uploader"
     )
     
     df = None
     dataset_name = "Solar Dataset"
     
-    # 1. PRELOADED COUNTRIES
-    if data_source_mode == "📂 Preloaded Countries (Benin, Sierra Leone, Togo)":
-        country = st.sidebar.selectbox(
-            "Select Country Dataset:",
-            ["Benin", "Sierra Leone", "Togo"],
-            help="Pre-configured high-resolution solar datasets"
-        )
-        
-        country_files = {
-            "Benin": ["data/benin-malanville.csv", "data/cleaned/benin_clean.csv"],
-            "Sierra Leone": ["data/sierraleone-bumbuna.csv", "data/cleaned/sierra_leone_clean.csv"],
-            "Togo": ["data/togo-dapaong_qc.csv", "data/cleaned/togo_clean.csv"]
-        }
-        
-        def resolve_country_path(c_name):
-            for path_str in country_files.get(c_name, []):
-                if Path(path_str).exists():
-                    return path_str
-            return country_files.get(c_name, [""])[0]
-        
-        selected_path = resolve_country_path(country)
-        dataset_name = f"{country} Solar Dataset"
-        
-        if selected_path and Path(selected_path).exists():
-            df = load_data_cached(selected_path)
-            st.sidebar.success(f"✅ Loaded {country} dataset: `{selected_path}`")
-        else:
-            st.sidebar.error(f"❌ File not found for {country}: `{selected_path}`")
-
-    # 2. UPLOAD ANY CSV FILE
-    elif data_source_mode == "📤 Upload Any CSV File":
-        st.sidebar.info("💡 **Universal CSV Support**: Upload any solar or weather CSV file from any region, station, or country.")
-        uploaded_file = st.sidebar.file_uploader(
-            "Upload any CSV dataset file",
-            type=['csv', 'txt', 'tsv'],
-            help="Upload solar irradiance, weather station, PV system, or meteorological CSV file"
-        )
-        
-        if uploaded_file is not None:
-            dataset_name = uploaded_file.name
-            try:
+    # 1. Check if a file was uploaded via sidebar uploader
+    if uploaded_file is not None:
+        # Clear main page session upload if sidebar file is chosen
+        st.session_state.pop('main_uploaded_df', None)
+        st.session_state.pop('main_uploaded_name', None)
+        dataset_name = uploaded_file.name
+        try:
+            with st.spinner(f"Loading and processing `{uploaded_file.name}`..."):
                 raw_df = read_csv_flexible(uploaded_file)
                 df = standardize_solar_dataframe(raw_df)
                 st.sidebar.success(f"✅ Loaded `{uploaded_file.name}` ({len(df):,} records)")
-            except Exception as e:
-                st.sidebar.error(f"❌ Error loading uploaded CSV: {str(e)}")
+        except Exception as e:
+            st.sidebar.error(f"❌ Error loading uploaded CSV: {str(e)}")
+            df = None
 
-    # 3. DISCOVERED CSVS IN DATA FOLDER
-    elif data_source_mode == "📁 Discovered CSVs in data/ folder":
-        local_csvs = discover_local_csv_files("data")
-        if not local_csvs:
-            st.sidebar.warning("No CSV files discovered in `data/` folder.")
-        else:
-            selected_discovered = st.sidebar.selectbox(
-                "Select Discovered CSV File:",
-                local_csvs,
-                help="Automatically scans and detects all CSV files in the data directory and subdirectories"
-            )
-            dataset_name = Path(selected_discovered).stem
-            if selected_discovered:
-                df = load_data_cached(selected_discovered)
-                st.sidebar.success(f"✅ Loaded `{selected_discovered}` ({len(df):,} records)")
-
-    # 4. CUSTOM FILE PATH
-    else:
-        file_path_input = st.sidebar.text_input(
-            "Enter path to ANY CSV file:",
-            placeholder="data/benin-malanville.csv",
-            help="Enter relative or absolute path to any CSV dataset on your machine"
-        )
-        if file_path_input:
-            dataset_name = Path(file_path_input).stem
-            if st.sidebar.button("📂 Load Custom File"):
-                df = load_data_cached(file_path_input)
-                if df is not None:
-                    st.sidebar.success(f"✅ Loaded `{file_path_input}` successfully!")
+    # 2. Check if a file was uploaded via main landing page uploader
+    elif 'main_uploaded_df' in st.session_state and st.session_state.get('main_uploaded_df') is not None:
+        df = st.session_state['main_uploaded_df']
+        dataset_name = st.session_state.get('main_uploaded_name', 'Uploaded Solar Dataset')
+        st.sidebar.success(f"✅ Loaded `{dataset_name}` ({len(df):,} records)")
+        if st.sidebar.button("🗑️ Remove File / Upload Another"):
+            st.session_state.pop('main_uploaded_df', None)
+            st.session_state.pop('main_uploaded_name', None)
+            st.rerun()
 
     # Persistent Metric Abbreviations Glossary in Sidebar
     st.sidebar.markdown("---")
@@ -318,8 +265,71 @@ def main():
 
     # Landing page view when no data is loaded
     if df is None:
-        st.info("👈 **Please select or upload a dataset in the sidebar to get started!**")
+        st.info("👈 **Please upload a CSV file to get started! All data, graphs, charts, and other visualizations will only be displayed after upload.**")
         
+        # Prominent upload drop zone on landing page
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); 
+                    border: 2px dashed #667eea; border-radius: 12px; padding: 1.75rem; 
+                    text-align: center; margin-bottom: 1.5rem;">
+            <h3 style="color: #667eea; margin-top: 0; font-size: 1.4rem;">📤 Upload Your Solar CSV Dataset</h3>
+            <p style="color: #444; font-size: 1rem; margin-bottom: 0.5rem;">
+                Select or drag & drop any solar or meteorological CSV file below (or use the sidebar on the left):
+            </p>
+            <p style="color: #777; font-size: 0.85rem; margin-bottom: 0;">
+                Compatible with Benin, Sierra Leone, Togo, NASA POWER, NREL NSRDB, PVGIS, Solargis, and custom weather station CSVs worldwide.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        landing_file = st.file_uploader(
+            "Upload any CSV dataset file",
+            type=['csv', 'txt', 'tsv'],
+            help="Upload solar irradiance, weather station, PV system, or meteorological CSV file",
+            key="landing_csv_uploader"
+        )
+        
+        if landing_file is not None:
+            try:
+                with st.spinner(f"Loading and processing `{landing_file.name}`..."):
+                    raw_df = read_csv_flexible(landing_file)
+                    loaded_df = standardize_solar_dataframe(raw_df)
+                    st.session_state['main_uploaded_df'] = loaded_df
+                    st.session_state['main_uploaded_name'] = landing_file.name
+                    st.rerun()
+            except Exception as e:
+                st.error(f"❌ Error loading uploaded CSV: {str(e)}")
+        
+        # Sample datasets download section
+        with st.expander("📥 Need sample datasets to test upload?", expanded=False):
+            st.markdown("Download a sample solar CSV dataset to test uploading into the dashboard:")
+            col_s1, col_s2, col_s3 = st.columns(3)
+            
+            sample_files = [
+                ("Benin (Malanville)", "data/benin-malanville.csv", "sample_benin_malanville.csv"),
+                ("Sierra Leone (Bumbuna)", "data/sierraleone-bumbuna.csv", "sample_sierraleone_bumbuna.csv"),
+                ("Togo (Dapaong)", "data/togo-dapaong_qc.csv", "sample_togo_dapaong.csv")
+            ]
+            
+            for (label, path_str, export_name), col in zip(sample_files, [col_s1, col_s2, col_s3]):
+                with col:
+                    p = Path(path_str)
+                    if p.exists():
+                        try:
+                            sample_df = pd.read_csv(p, nrows=3000)
+                            sample_csv = sample_df.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label=f"📥 {label}",
+                                data=sample_csv,
+                                file_name=export_name,
+                                mime="text/csv",
+                                width="stretch"
+                            )
+                        except Exception:
+                            st.caption(f"{label} dataset")
+                    else:
+                        st.caption(f"{label} dataset")
+
         # Prominent callout answering Question 1: Does it receive any other CSV files?
         st.markdown("""
         ### 🌍 Universal CSV File Compatibility
@@ -328,7 +338,7 @@ def main():
         > **Yes! This platform receives and processes ANY CSV file** — not just the 3 sample countries (Benin, Sierra Leone, Togo).
         > 
         > Whether your data comes from **NASA POWER**, **NREL NSRDB**, **PVGIS**, **Solargis**, an on-site solar pyranometer logger, or any regional meteorological station worldwide:
-        > 1. **Flexible Uploading & Loading**: Use **'Upload Any CSV File'**, select any discovered CSV in `data/`, or provide a **'Custom File Path'**.
+        > 1. **Flexible Uploading**: Upload any CSV, TSV, or TXT file using the sidebar or center upload box.
         > 2. **Automatic Schema Standardization**: The engine auto-detects date/time columns (`timestamp`, `datetime`, `date_time`, `date`, `time`, `dt`, or separate Year/Month/Day columns) and case-insensitive metric aliases (`ghi`, `dni`, `dhi`, `temp`, `humidity`, `wind_speed`, etc.).
         > 3. **Dynamic Metric Discovery**: Any numeric sensor or measurement column present in your CSV file is automatically identified, selectable, and plottable across all tabs.
         """)
@@ -341,7 +351,7 @@ def main():
         
         with st.expander("ℹ️ How to Use This Dashboard", expanded=False):
             st.markdown(r"""
-            1. **Select or Upload Data**: Choose a preloaded country from Benin, Sierra Leone, or Togo, or upload any custom solar CSV file.
+            1. **Upload Data**: Upload any solar or meteorological CSV dataset using the sidebar or center upload box.
             2. **Choose Metrics**: Select one or more metrics from the sidebar. Each metric is listed with its **abbreviation AND full name**.
             3. **Filter Date Range**: Optionally focus on a specific season, month, or multi-week event.
             4. **Explore Interactive Tabs**:
