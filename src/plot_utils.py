@@ -29,14 +29,17 @@ def create_boxplot(df: pd.DataFrame, metrics: list, title: str = "Metric Compari
     Returns:
         Plotly Figure object
     """
+    # Sample data if dataset is large (keeps boxplot mathematically sound and ultra-fast)
+    plot_df = df.sample(min(10000, len(df)), random_state=42) if len(df) > 10000 else df
+
     # Prepare data for plotting
     data_to_plot = []
     
     for metric in metrics:
-        if metric in df.columns:
+        if metric in plot_df.columns:
             data_to_plot.append(
                 go.Box(
-                    y=df[metric].dropna(),
+                    y=plot_df[metric].dropna(),
                     name=metric,
                     boxmean='sd'  # Show mean and standard deviation
                 )
@@ -74,8 +77,15 @@ def create_time_series(df: pd.DataFrame, metric: str, title: str = None) -> go.F
     if title is None:
         title = f"{metric} Over Time"
     
+    # Downsample time series if dataset is large to prevent browser freeze and heavy payloads
+    if len(df) > 3000:
+        step = max(1, len(df) // 3000)
+        plot_df = df.iloc[::step]
+    else:
+        plot_df = df
+
     fig = px.line(
-        df, 
+        plot_df, 
         x='Timestamp', 
         y=metric,
         title=title,
@@ -156,9 +166,12 @@ def create_scatter_plot(df: pd.DataFrame, x_metric: str, y_metric: str,
     if x_metric not in df.columns or y_metric not in df.columns:
         return go.Figure()
     
+    # Sample data to avoid freezing browser with massive point counts
+    plot_df = df.sample(min(3000, len(df)), random_state=42) if len(df) > 3000 else df
+    
     if color_metric and color_metric in df.columns:
         fig = px.scatter(
-            df, 
+            plot_df, 
             x=x_metric, 
             y=y_metric,
             color=color_metric,
@@ -168,7 +181,7 @@ def create_scatter_plot(df: pd.DataFrame, x_metric: str, y_metric: str,
         )
     else:
         fig = px.scatter(
-            df, 
+            plot_df, 
             x=x_metric, 
             y=y_metric,
             title=f"{y_metric} vs {x_metric}",
@@ -251,20 +264,23 @@ def create_wind_distribution(df: pd.DataFrame) -> go.Figure:
     if 'WS' not in df.columns:
         return go.Figure()
     
+    # Sample if large dataset to keep histogram rendering snappy
+    plot_df = df.sample(min(20000, len(df)), random_state=42) if len(df) > 20000 else df
+
     # Create histogram
     fig = go.Figure()
     
     fig.add_trace(go.Histogram(
-        x=df['WS'].dropna(),
+        x=plot_df['WS'].dropna(),
         nbinsx=50,
         name='Wind Speed',
         marker_color='lightblue',
         opacity=0.7
     ))
     
-    if 'WSgust' in df.columns:
+    if 'WSgust' in plot_df.columns:
         fig.add_trace(go.Histogram(
-            x=df['WSgust'].dropna(),
+            x=plot_df['WSgust'].dropna(),
             nbinsx=50,
             name='Wind Gust',
             marker_color='orange',
@@ -297,12 +313,9 @@ def create_hourly_pattern(df: pd.DataFrame, metric: str) -> go.Figure:
     if 'Timestamp' not in df.columns or metric not in df.columns:
         return go.Figure()
     
-    # Extract hour from timestamp
-    df_copy = df.copy()
-    df_copy['Hour'] = df_copy['Timestamp'].dt.hour
-    
-    # Calculate hourly averages
-    hourly_avg = df_copy.groupby('Hour')[metric].mean().reset_index()
+    # Calculate hourly averages directly without expensive full-dataframe copy
+    hourly_avg = df.groupby(df['Timestamp'].dt.hour)[metric].mean().reset_index()
+    hourly_avg.columns = ['Hour', metric]
     
     fig = go.Figure()
     
@@ -341,17 +354,14 @@ def create_monthly_pattern(df: pd.DataFrame, metric: str) -> go.Figure:
     if 'Timestamp' not in df.columns or metric not in df.columns:
         return go.Figure()
     
-    # Extract month from timestamp
-    df_copy = df.copy()
-    df_copy['Month'] = df_copy['Timestamp'].dt.month
-    
-    # Calculate monthly averages
-    monthly_avg = df_copy.groupby('Month')[metric].mean().reset_index()
+    # Calculate monthly averages directly without expensive full-dataframe copy
+    monthly_avg = df.groupby(df['Timestamp'].dt.month)[metric].mean().reset_index()
+    monthly_avg.columns = ['Month', metric]
     
     # Month names for better labeling
     month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    monthly_avg['MonthName'] = monthly_avg['Month'].apply(lambda x: month_names[x-1])
+    monthly_avg['MonthName'] = monthly_avg['Month'].apply(lambda x: month_names[int(x)-1])
     
     fig = go.Figure()
     
@@ -388,6 +398,8 @@ def create_distribution_plot(df: pd.DataFrame, metric: str) -> go.Figure:
         return go.Figure()
     
     data = df[metric].dropna()
+    if len(data) > 20000:
+        data = data.sample(20000, random_state=42)
     
     fig = go.Figure()
     

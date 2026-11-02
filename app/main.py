@@ -233,6 +233,12 @@ def load_data_cached(file_path: str):
         return None
 
 
+@st.cache_data
+def convert_df_to_csv(data: pd.DataFrame) -> bytes:
+    """Cache CSV conversion so it is not re-computed on every rerun"""
+    return data.to_csv(index=False).encode('utf-8')
+
+
 def main():
     """Main application function"""
     
@@ -282,12 +288,18 @@ def main():
             help="Select a predefined country or use a custom path"
         )
         
-        # Default paths to cleaned data files
-        default_paths = {
-            "Benin": "data/cleaned/benin_clean.csv",
-            "Sierra Leone": "data/cleaned/sierra_leone_clean.csv",
-            "Togo": "data/cleaned/togo_clean.csv"
+        # Smart candidate paths (support both data/cleaned/ and data/ raw files)
+        country_candidates = {
+            "Benin": ["data/benin-malanville.csv", "data/cleaned/benin_clean.csv"],
+            "Sierra Leone": ["data/sierraleone-bumbuna.csv", "data/cleaned/sierra_leone_clean.csv"],
+            "Togo": ["data/togo-dapaong_qc.csv", "data/cleaned/togo_clean.csv"]
         }
+        
+        def resolve_default_path(c_name):
+            for p in country_candidates.get(c_name, []):
+                if Path(p).exists():
+                    return p
+            return country_candidates.get(c_name, [""])[0]
         
         if country == "Custom Path":
             file_path = st.sidebar.text_input(
@@ -298,7 +310,7 @@ def main():
         else:
             file_path = st.sidebar.text_input(
                 f"File path for {country}:",
-                value=default_paths.get(country, ""),
+                value=resolve_default_path(country),
                 help="Update this path to match your local file location"
             )
         
@@ -422,7 +434,7 @@ def main():
                 summary_df = get_summary_statistics(df, selected_metrics)
                 st.dataframe(
                     summary_df.style.format("{:.2f}").background_gradient(cmap='Blues', subset=['Mean']),
-                    use_container_width=True,
+                    width="stretch",
                     height=400
                 )
             
@@ -446,7 +458,7 @@ def main():
             st.markdown("### 📊 Distribution Comparison")
             st.markdown("*Compare the statistical distribution of selected metrics*")
             fig_box = create_boxplot(df, selected_metrics, "Metric Distribution Comparison")
-            st.plotly_chart(fig_box, use_container_width=True, config={'displayModeBar': True, 'displaylogo': False})
+            st.plotly_chart(fig_box, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
     
     with tab2:
         st.header("📈 Time Series Analysis")
@@ -465,7 +477,7 @@ def main():
                 # Time series plot with enhanced presentation
                 st.markdown(f"### 📈 {metric_for_ts} Trends Over Time")
                 fig_ts = create_time_series(df, metric_for_ts)
-                st.plotly_chart(fig_ts, use_container_width=True, config={'displayModeBar': True, 'displaylogo': False})
+                st.plotly_chart(fig_ts, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
                 
                 # Top/Peak hours in columns
                 st.markdown("---")
@@ -477,7 +489,7 @@ def main():
                     if not top_df.empty:
                         st.dataframe(
                             top_df.style.format({metric_for_ts: "{:.2f}"}).highlight_max(axis=0, color='lightgreen'),
-                            use_container_width=True,
+                            width="stretch",
                             height=400
                         )
                     else:
@@ -510,7 +522,7 @@ def main():
                 st.markdown(f"### 📊 {metric} Distribution Analysis")
                 st.info("💡 This histogram shows how frequently different values occur in the dataset.")
                 fig = create_distribution_plot(df, metric)
-                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': True, 'displaylogo': False})
+                st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
             
             elif analysis_type == "Scatter Plot":
                 col1, col2, col3 = st.columns(3)
@@ -525,7 +537,7 @@ def main():
                 st.markdown(f"### 🔵 Scatter Analysis: {y_metric} vs {x_metric}")
                 st.info("💡 Explore the relationship between two metrics. Points show individual measurements.")
                 fig = create_scatter_plot(df, x_metric, y_metric, color_metric)
-                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': True, 'displaylogo': False})
+                st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
             
             elif analysis_type == "Bubble Chart":
                 if len(selected_metrics) < 3:
@@ -545,14 +557,14 @@ def main():
                     st.markdown("### 🫧 Multi-Dimensional Bubble Chart")
                     st.info("💡 Bubble size represents the third metric. Larger bubbles indicate higher values.")
                     fig = create_bubble_chart(df, x_metric, y_metric, size_metric, color_metric)
-                    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': True, 'displaylogo': False})
+                    st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
             
             elif analysis_type == "Wind Analysis":
                 if 'WS' in df.columns:
                     st.markdown("### 🌬️ Wind Speed & Gust Analysis")
                     st.info("💡 Compare wind speed and gust distributions to understand wind patterns.")
                     fig = create_wind_distribution(df)
-                    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': True, 'displaylogo': False})
+                    st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
                     
                     # Additional wind statistics
                     col1, col2, col3 = st.columns(3)
@@ -586,13 +598,13 @@ def main():
                 st.markdown(f"### ⏰ Hourly Pattern: {metric}")
                 st.info("💡 This chart shows the average values across all days for each hour of the day.")
                 fig = create_hourly_pattern(df, metric)
-                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': True, 'displaylogo': False})
+                st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
             
             else:  # Monthly Pattern
                 st.markdown(f"### 📅 Monthly Pattern: {metric}")
                 st.info("💡 This chart shows the average values for each month in the dataset.")
                 fig = create_monthly_pattern(df, metric)
-                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': True, 'displaylogo': False})
+                st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
     
     with tab5:
         st.header("🔗 Correlation Analysis")
@@ -603,7 +615,7 @@ def main():
             st.markdown("### 🔗 Correlation Matrix Heatmap")
             st.info("💡 Correlation values range from -1 to 1. Values closer to 1 indicate strong positive correlation, while values closer to -1 indicate strong negative correlation.")
             fig_corr = create_correlation_heatmap(df, selected_metrics)
-            st.plotly_chart(fig_corr, use_container_width=True, config={'displayModeBar': True, 'displaylogo': False})
+            st.plotly_chart(fig_corr, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
             
             # Show strongest correlations
             st.markdown("---")
@@ -629,13 +641,13 @@ def main():
                     st.markdown("#### 🔺 Strongest Positive")
                     st.dataframe(
                         corr_df.head(5).style.format({'Correlation': '{:.3f}'}).background_gradient(cmap='Greens'),
-                        use_container_width=True
+                        width="stretch"
                     )
                 with col2:
                     st.markdown("#### 🔻 Strongest Negative")
                     st.dataframe(
                         corr_df.tail(5).style.format({'Correlation': '{:.3f}'}).background_gradient(cmap='Reds'),
-                        use_container_width=True
+                        width="stretch"
                     )
     
     with tab6:
@@ -655,11 +667,11 @@ def main():
         
         # Display data
         if show_all_cols:
-            st.dataframe(df.head(num_rows), use_container_width=True)
+            st.dataframe(df.head(num_rows), width="stretch")
         else:
             display_cols = ['Timestamp'] + selected_metrics if 'Timestamp' in df.columns else selected_metrics
             display_cols = [col for col in display_cols if col in df.columns]
-            st.dataframe(df[display_cols].head(num_rows), use_container_width=True)
+            st.dataframe(df[display_cols].head(num_rows), width="stretch")
         
         # Download option with enhanced presentation
         st.markdown("---")
@@ -672,13 +684,12 @@ def main():
             This includes all currently selected metrics and applied filters.
             """)
         with col2:
-            csv = df.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="⬇️ Download CSV",
-                data=csv,
+                data=convert_df_to_csv(df),
                 file_name=f"solar_data_filtered_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv",
-                use_container_width=True
+                width="stretch"
             )
     
     # Enhanced Footer
