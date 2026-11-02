@@ -101,42 +101,52 @@ The dashboard will automatically open in your default web browser at `http://loc
 The dashboard provides the following interactive features:
 
 #### 🎛️ **Sidebar Controls**
-- **Data Source Selection**: Upload CSV file or use local path
-- **Country Selection**: Choose from Benin, Sierra Leone, Togo, or custom path
-- **Metric Selection**: Multi-select from GHI, DNI, DHI, Tamb, RH, WS, WSgust, etc.
-- **Date Range Filter**: Filter data by specific date ranges
-- **Dataset Information**: View record counts and date ranges
+- **Data Source Selection**: Choose from 4 flexible options:
+  - 📂 **Preloaded Country Datasets**: Instant access to Benin, Sierra Leone, and Togo
+  - 📤 **Upload Any CSV File**: Drag & drop any solar or meteorological CSV file from any country or station worldwide
+  - 📁 **Discovered CSVs in `data/`**: Automatically detects all `.csv` files placed in the `data/` folder
+  - 📝 **Custom File Path**: Enter any local filesystem path
+- **Metric Selection**: Multi-select to choose one or more metrics (GHI, DNI, DHI, Tamb, WS, etc.) for analysis
+- **Date Range Filter**: Filter records interactively by date
+- **Dataset Information**: Summary record counts, column counts, and timestamp spans
+- **Sidebar Abbreviations Glossary**: Quick expandable lookup for abbreviations while navigating any tab
 
-#### 📈 **Visualization Tabs**
+#### 📈 **Visualization & Analytics Tabs**
 
-1. **Overview Tab**
-   - Summary statistics (Mean, Median, Std Dev, Min, Max)
-   - Quick metrics display
-   - Interactive boxplot for metric comparison
+1. **📊 Overview Tab**
+   - Statistical summary table (Mean, Median, Std Dev, Min, Max, Count)
+   - Quick metrics displaying current values with peak percentages and full names
+   - Metric definitions and abbreviations reference expander
+   - Interactive boxplot comparison with full names in hover tooltips
 
-2. **Time Series Tab**
-   - Dynamic time series plots
-   - Peak hours analysis (Top 10 highest values)
-   - Temporal trend visualization
+2. **📈 Time Series Tab**
+   - Dynamic time series plots with full metric titles and units
+   - Peak readings table (Top 10 highest measurement intervals)
+   - Summary figures (Peak maximum, average, standard deviation)
 
-3. **Detailed Analysis Tab**
-   - Distribution plots with histograms
-   - Scatter plots with customizable axes
-   - Bubble charts for multi-dimensional analysis
-   - Wind speed distribution analysis
+3. **🔍 Detailed Analysis Tab**
+   - Probability density distribution histograms
+   - Bivariate scatter plots with color coding
+   - 3D multi-dimensional bubble charts
+   - Wind speed and gust velocity distributions
 
-4. **Patterns Tab**
-   - Hourly pattern analysis (average by hour of day)
-   - Monthly pattern analysis (average by month)
-   - Seasonal trend identification
+4. **🌡️ Patterns Tab**
+   - Diurnal hourly profile (24-hour average cycle)
+   - Seasonal monthly profile (12-month calendar cycle)
 
-5. **Correlations Tab**
-   - Interactive correlation heatmap
-   - Identify relationships between metrics
+5. **🔗 Correlations Tab**
+   - Interactive Pearson correlation heatmap
+   - Strongest positive and negative linear correlations ranking
 
-6. **Data Table Tab**
-   - View raw data with customizable row counts
-   - Download filtered data as CSV
+6. **📋 Data Table Tab**
+   - Interactive data preview with customizable row count
+   - One-click filtered CSV dataset export
+
+7. **📖 Abbreviations & Glossary Tab**
+   - Comprehensive interactive dictionary of all solar metric abbreviations and full descriptive text
+   - Real-time search filter and category selector
+   - Fundamental solar geometry formula breakdown: $\text{GHI} = \text{DNI} \cdot \cos(\theta_z) + \text{DHI}$
+   - Compatibility guide for external datasets (NASA POWER, NREL NSRDB, PVGIS, Solargis)
 
 ### Dashboard Usage Example
 
@@ -241,22 +251,33 @@ Main dependencies include:
 
 See `requirements.txt` for complete list.
 
-## 📝 Data Format
+## 📝 Solar Metric Abbreviations & Full Descriptive Names
 
-Expected CSV format for solar datasets:
+The platform standardizes and recognizes solar and meteorological variables from any country or station:
 
-| Column | Description | Unit |
-|--------|-------------|------|
-| Timestamp | Date and time of measurement | datetime |
-| GHI | Global Horizontal Irradiance | W/m² |
-| DNI | Direct Normal Irradiance | W/m² |
-| DHI | Diffuse Horizontal Irradiance | W/m² |
-| Tamb | Ambient Temperature | °C |
-| RH | Relative Humidity | % |
-| WS | Wind Speed | m/s |
-| WSgust | Wind Gust Speed | m/s |
-| BP | Barometric Pressure | hPa |
-| Precipitation | Precipitation | mm |
+| Abbreviation | Full Name | Unit | Category | Description |
+|:---|:---|:---|:---|:---|
+| **Timestamp** | Date and Time | YYYY-MM-DD HH:MM:SS | Time | Timestamp of observation (auto-detected from various formats) |
+| **GHI** | Global Horizontal Irradiance | W/m² | Solar Radiation | Total solar radiation received on a horizontal surface ($\text{GHI} = \text{DNI} \cos\theta_z + \text{DHI}$) |
+| **DNI** | Direct Normal Irradiance | W/m² | Solar Radiation | Direct beam solar radiation received perpendicular to the sun's rays |
+| **DHI** | Diffuse Horizontal Irradiance | W/m² | Solar Radiation | Solar radiation scattered by the atmosphere and clouds onto a horizontal plane |
+| **Tamb** | Ambient Temperature | °C | Temperature & Humidity | Dry-bulb ambient air temperature in the shade |
+| **TModA** | Module Temperature A | °C | Temperature & Humidity | Rear surface temperature of reference PV sensor module A |
+| **TModB** | Module Temperature B | °C | Temperature & Humidity | Rear surface temperature of reference PV sensor module B |
+| **RH** | Relative Humidity | % | Temperature & Humidity | Percentage of water vapor saturation in ambient air |
+| **WS** | Wind Speed | m/s | Wind & Atmosphere | Average horizontal air velocity (cools PV modules) |
+| **WSgust** | Wind Gust Speed | m/s | Wind & Atmosphere | Peak momentary wind speed during the observation window |
+| **WSstdev** | Wind Speed Standard Deviation | m/s | Wind & Atmosphere | Standard deviation of wind speed (proxy for turbulence) |
+| **WD** | Wind Direction | ° North | Wind & Atmosphere | Direction from which wind blows (0° to 360° clockwise from True North) |
+| **WDstdev** | Wind Direction Std Dev | ° | Wind & Atmosphere | Angular standard deviation of wind direction |
+| **BP** | Barometric Pressure | hPa | Wind & Atmosphere | Atmospheric station barometric pressure (1 hPa = 1 mbar) |
+| **Precipitation** | Precipitation / Rainfall | mm | Environmental | Liquid water accumulation depth (washes dust off panels) |
+| **ModA** | Sensor Module A Irradiance | W/m² | Sensor Hardware | Irradiance output reading from reference PV cell A |
+| **ModB** | Sensor Module B Irradiance | W/m² | Sensor Hardware | Irradiance output reading from reference PV cell B |
+| **Cleaning** | Panel Cleaning Event | Flag (0/1) | Operations | Binary flag indicating when solar modules were cleaned |
+| **Comments** | Quality Control Comments | Text | Operations | Operational notes, anomalies, or calibration logs |
+| **POA** | Plane of Array Irradiance | W/m² | General Solar | Solar radiation received on the tilted surface of PV panels |
+| **PR** | Performance Ratio | % | General Solar | Ratio of actual solar plant generation to nominal expected output |
 
 ## 🎓 Learning Objectives
 

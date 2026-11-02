@@ -1,9 +1,9 @@
 """
-Solar Challenge Interactive Dashboard
-10 Academy KAIM Week 0 - Bonus Task
+Solar Data Discovery Interactive Dashboard
+10 Academy KAIM Week 0 - Bonus Task & Portfolio Project
 
-A production-ready Streamlit dashboard for visualizing solar radiation data
-from Benin, Sierra Leone, and Togo.
+A production-ready Streamlit dashboard for analyzing and visualizing solar radiation
+and meteorological datasets from Benin, Sierra Leone, Togo, and ANY country or station worldwide.
 """
 
 import streamlit as st
@@ -16,12 +16,21 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from src.data_loader import (
     load_solar_data, 
+    read_csv_flexible,
     standardize_solar_dataframe,
     get_available_metrics, 
     get_date_range,
     filter_by_date_range,
     get_summary_statistics,
-    get_top_hours
+    get_top_hours,
+    discover_local_csv_files,
+    get_metric_full_name,
+    get_metric_unit,
+    get_metric_category,
+    get_metric_description,
+    get_glossary_dataframe,
+    METRIC_GLOSSARY,
+    GENERAL_SOLAR_TERMS
 )
 from src.plot_utils import (
     create_boxplot,
@@ -43,7 +52,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for responsive and modern styling
+# Custom CSS for modern, responsive styling
 st.markdown("""
     <style>
     /* Main Header Styling */
@@ -55,26 +64,27 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
         background-clip: text;
         text-align: center;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.25rem;
         padding: 0.5rem;
     }
     
     /* Sub Header */
     .sub-header {
-        font-size: clamp(0.9rem, 2vw, 1.2rem);
-        color: #666;
+        font-size: clamp(0.9rem, 2vw, 1.15rem);
+        color: #555;
         text-align: center;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.25rem;
         font-weight: 400;
     }
     
     /* Metric Cards */
     .metric-card {
         background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-        padding: 1.5rem;
+        padding: 1.25rem;
         border-radius: 12px;
         margin: 0.5rem 0;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        border: 1px solid #667eea20;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
     
@@ -82,26 +92,29 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
     }
-    
-    /* Responsive Containers */
-    .block-container {
-        padding: 1rem 2rem;
-        max-width: 100%;
+
+    /* Glossy Table Styling */
+    .glossary-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+        font-size: 0.9rem;
     }
     
-    @media (max-width: 768px) {
-        .block-container {
-            padding: 0.5rem 1rem;
-        }
+    .glossary-table th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 10px 14px;
+        text-align: left;
     }
     
-    /* Custom Sidebar Styling */
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+    .glossary-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #e2e8f0;
     }
     
-    section[data-testid="stSidebar"] .css-1d391kg {
-        padding: 1rem;
+    .glossary-table tr:nth-child(even) {
+        background-color: #f8fafc;
     }
     
     /* Enhanced Tabs */
@@ -111,59 +124,23 @@ st.markdown("""
     }
     
     .stTabs [data-baseweb="tab"] {
-        height: 50px;
+        height: 48px;
         white-space: pre-wrap;
         background-color: #f0f2f6;
         border-radius: 8px 8px 0 0;
-        gap: 1px;
         padding: 10px 16px;
-        font-weight: 500;
+        font-weight: 600;
         transition: all 0.2s ease;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
-        background-color: #e0e2e6;
+        background-color: #e2e8f0;
         transform: translateY(-2px);
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: white !important;
-    }
-    
-    /* Info Boxes */
-    .stAlert {
-        border-radius: 10px;
-        border-left: 5px solid #667eea;
-        padding: 1rem;
-        background-color: #f8f9ff;
-    }
-    
-    /* Download Button Styling */
-    .stDownloadButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.5rem 2rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    
-    .stDownloadButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
-    }
-    
-    /* Metric Widgets */
-    div[data-testid="stMetricValue"] {
-        font-size: clamp(1.2rem, 3vw, 2rem);
-        font-weight: 700;
-    }
-    
-    /* Responsive Tables */
-    .dataframe {
-        font-size: clamp(0.75rem, 1.5vw, 0.9rem);
     }
     
     /* Footer Styling */
@@ -174,54 +151,8 @@ st.markdown("""
         border-radius: 12px;
         margin-top: 2rem;
     }
-    
-    /* Expander Styling */
-    .streamlit-expanderHeader {
-        background-color: #f8f9ff;
-        border-radius: 8px;
-        font-weight: 600;
-    }
-    
-    /* Plot Containers */
-    .js-plotly-plot {
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    }
-    
-    /* Radio Buttons */
-    .stRadio > label {
-        font-weight: 600;
-        color: #333;
-    }
-    
-    /* Select Boxes */
-    .stSelectbox > label {
-        font-weight: 600;
-        color: #333;
-    }
-    
-    /* Mobile Responsive */
-    @media (max-width: 640px) {
-        .stTabs [data-baseweb="tab"] {
-            font-size: 0.85rem;
-            padding: 8px 12px;
-        }
-        
-        .main-header {
-            font-size: 1.8rem;
-        }
-        
-        .sub-header {
-            font-size: 0.9rem;
-        }
-    }
-    
-    /* Smooth Animations */
-    * {
-        transition: background-color 0.2s ease, color 0.2s ease;
-    }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 
 @st.cache_data
@@ -240,147 +171,210 @@ def convert_df_to_csv(data: pd.DataFrame) -> bytes:
     return data.to_csv(index=False).encode('utf-8')
 
 
+def render_glossary_overview():
+    """Render a comprehensive abbreviations & full text table in markdown"""
+    df_glossary = get_glossary_dataframe(include_general_terms=True)
+    st.dataframe(
+        df_glossary,
+        width="stretch",
+        height=400,
+        column_config={
+            "Abbreviation": st.column_config.TextColumn("Abbreviation", width="small"),
+            "Full Name": st.column_config.TextColumn("Full Descriptive Text", width="medium"),
+            "Unit": st.column_config.TextColumn("Measurement Unit", width="small"),
+            "Category": st.column_config.TextColumn("Category", width="small"),
+            "Description": st.column_config.TextColumn("Description & Physical Meaning", width="large")
+        }
+    )
+
+
 def main():
     """Main application function"""
     
-    # Header with improved responsive design
+    # Header
     st.markdown('''
         <div class="main-header">☀️ Solar Data Discovery</div>
-        <div class="sub-header">Interactive Analysis of Solar Radiation & Meteorological Data</div>
+        <div class="sub-header">Interactive Analytics Platform for Solar Radiation & Meteorological Datasets Worldwide</div>
     ''', unsafe_allow_html=True)
     
     # Sidebar configuration
-    st.sidebar.title("⚙️ Dashboard Configuration")
+    st.sidebar.title("⚙️ Dataset Configuration")
     st.sidebar.markdown("---")
     
-    # Country/Dataset selection
-    st.sidebar.subheader("📍 Select Dataset")
+    # Dataset Selection Method
+    st.sidebar.subheader("📍 Data Source")
     
-    # Option to upload file or use local path
-    data_source = st.sidebar.radio(
-        "Data Source:",
-        ["Upload CSV File", "Use Local Path"],
-        help="Choose how to load your dataset"
+    data_source_mode = st.sidebar.radio(
+        "Choose Data Source:",
+        [
+            "📂 Preloaded Countries (Benin, Sierra Leone, Togo)",
+            "📤 Upload Any CSV File",
+            "📁 Discovered CSVs in data/ folder",
+            "📝 Enter Custom File Path"
+        ],
+        help="You can load pre-configured country datasets, upload any CSV file from any country, or point to any local file."
     )
     
     df = None
+    dataset_name = "Solar Dataset"
     
-    if data_source == "Upload CSV File":
-        uploaded_file = st.sidebar.file_uploader(
-            "Upload any solar CSV file",
-            type=['csv'],
-            help="Upload your solar or meteorological dataset CSV file"
-        )
-        
-        if uploaded_file is not None:
-            try:
-                raw_df = pd.read_csv(uploaded_file)
-                df = standardize_solar_dataframe(raw_df)
-                st.sidebar.success("✅ File loaded successfully!")
-            except Exception as e:
-                st.sidebar.error(f"❌ Error loading file: {str(e)}")
-    
-    else:  # Use Local Path
-        # Predefined country paths (user can modify)
+    # 1. PRELOADED COUNTRIES
+    if data_source_mode == "📂 Preloaded Countries (Benin, Sierra Leone, Togo)":
         country = st.sidebar.selectbox(
-            "Select Country:",
-            ["Benin", "Sierra Leone", "Togo", "Custom Path"],
-            help="Select a predefined country or use a custom path"
+            "Select Country Dataset:",
+            ["Benin", "Sierra Leone", "Togo"],
+            help="Pre-configured high-resolution solar datasets"
         )
         
-        # Smart candidate paths (support both data/cleaned/ and data/ raw files)
-        country_candidates = {
+        country_files = {
             "Benin": ["data/benin-malanville.csv", "data/cleaned/benin_clean.csv"],
             "Sierra Leone": ["data/sierraleone-bumbuna.csv", "data/cleaned/sierra_leone_clean.csv"],
             "Togo": ["data/togo-dapaong_qc.csv", "data/cleaned/togo_clean.csv"]
         }
         
-        def resolve_default_path(c_name):
-            for p in country_candidates.get(c_name, []):
-                if Path(p).exists():
-                    return p
-            return country_candidates.get(c_name, [""])[0]
+        def resolve_country_path(c_name):
+            for path_str in country_files.get(c_name, []):
+                if Path(path_str).exists():
+                    return path_str
+            return country_files.get(c_name, [""])[0]
         
-        if country == "Custom Path":
-            file_path = st.sidebar.text_input(
-                "Enter file path:",
-                placeholder="path/to/your/file.csv",
-                help="Enter the full or relative path to your CSV file"
-            )
+        selected_path = resolve_country_path(country)
+        dataset_name = f"{country} Solar Dataset"
+        
+        if selected_path and Path(selected_path).exists():
+            df = load_data_cached(selected_path)
+            st.sidebar.success(f"✅ Loaded {country} dataset: `{selected_path}`")
         else:
-            file_path = st.sidebar.text_input(
-                f"File path for {country}:",
-                value=resolve_default_path(country),
-                help="Update this path to match your local file location"
+            st.sidebar.error(f"❌ File not found for {country}: `{selected_path}`")
+
+    # 2. UPLOAD ANY CSV FILE
+    elif data_source_mode == "📤 Upload Any CSV File":
+        st.sidebar.info("💡 **Universal CSV Support**: Upload any solar or weather CSV file from any region, station, or country.")
+        uploaded_file = st.sidebar.file_uploader(
+            "Upload any CSV dataset file",
+            type=['csv', 'txt', 'tsv'],
+            help="Upload solar irradiance, weather station, PV system, or meteorological CSV file"
+        )
+        
+        if uploaded_file is not None:
+            dataset_name = uploaded_file.name
+            try:
+                raw_df = read_csv_flexible(uploaded_file)
+                df = standardize_solar_dataframe(raw_df)
+                st.sidebar.success(f"✅ Loaded `{uploaded_file.name}` ({len(df):,} records)")
+            except Exception as e:
+                st.sidebar.error(f"❌ Error loading uploaded CSV: {str(e)}")
+
+    # 3. DISCOVERED CSVS IN DATA FOLDER
+    elif data_source_mode == "📁 Discovered CSVs in data/ folder":
+        local_csvs = discover_local_csv_files("data")
+        if not local_csvs:
+            st.sidebar.warning("No CSV files discovered in `data/` folder.")
+        else:
+            selected_discovered = st.sidebar.selectbox(
+                "Select Discovered CSV File:",
+                local_csvs,
+                help="Automatically scans and detects all CSV files in the data directory and subdirectories"
             )
-        
-        if file_path:
-            if st.sidebar.button("📂 Load Data"):
-                df = load_data_cached(file_path)
+            dataset_name = Path(selected_discovered).stem
+            if selected_discovered:
+                df = load_data_cached(selected_discovered)
+                st.sidebar.success(f"✅ Loaded `{selected_discovered}` ({len(df):,} records)")
+
+    # 4. CUSTOM FILE PATH
+    else:
+        file_path_input = st.sidebar.text_input(
+            "Enter path to ANY CSV file:",
+            placeholder="data/benin-malanville.csv",
+            help="Enter relative or absolute path to any CSV dataset on your machine"
+        )
+        if file_path_input:
+            dataset_name = Path(file_path_input).stem
+            if st.sidebar.button("📂 Load Custom File"):
+                df = load_data_cached(file_path_input)
                 if df is not None:
-                    st.sidebar.success("✅ Data loaded successfully!")
-    
-    # Main content area
+                    st.sidebar.success(f"✅ Loaded `{file_path_input}` successfully!")
+
+    # Persistent Metric Abbreviations Glossary in Sidebar
+    st.sidebar.markdown("---")
+    with st.sidebar.expander("📖 Metric Abbreviations Glossary", expanded=False):
+        st.markdown("""
+        **Quick Abbreviation Lookup:**
+        - **GHI**: Global Horizontal Irradiance ($W/m^2$)
+        - **DNI**: Direct Normal Irradiance ($W/m^2$)
+        - **DHI**: Diffuse Horizontal Irradiance ($W/m^2$)
+        - **Tamb**: Ambient Temperature ($^\\circ C$)
+        - **TModA / TModB**: Module Temperature A / B ($^\\circ C$)
+        - **RH**: Relative Humidity ($\\%$)
+        - **WS**: Wind Speed ($m/s$)
+        - **WSgust**: Wind Gust Speed ($m/s$)
+        - **WD**: Wind Direction ($^\\circ$ North)
+        - **BP**: Barometric Pressure ($hPa$)
+        - **ModA / ModB**: Module Sensors ($W/m^2$)
+        - **Precipitation**: Rainfall ($mm$)
+        - **Cleaning**: Cleaning Flag ($1/0$)
+        """)
+        st.caption("👉 See the dedicated **'📖 Abbreviations & Glossary'** tab for full definitions, units, and formulas.")
+
+    # Landing page view when no data is loaded
     if df is None:
-        st.info("👈 Please load a dataset using the sidebar to get started!")
+        st.info("👈 **Please select or upload a dataset in the sidebar to get started!**")
         
-        # Display instructions
-        with st.expander("📖 How to Use This Dashboard", expanded=True):
-            st.markdown("""
-            ### Getting Started
-            
-            1. **Load Your Data**: Use the sidebar to either:
-               - Upload a CSV file directly, or
-               - Specify a local file path to your cleaned dataset
-            
-            2. **Configure Filters**: Once data is loaded, you can:
-               - Select metrics to analyze (GHI, DNI, DHI, etc.)
-               - Filter by date range
-               - Choose visualization options
-            
-            3. **Explore Visualizations**: Navigate through different tabs to view:
-               - Boxplot comparisons
-               - Time series analysis
-               - Statistical summaries
-               - Correlation patterns
-               - And much more!
-            
-            ### Expected Data Format & Metric Abbreviations
-            Your CSV file can contain any solar or weather measurements, such as:
-            - **`Timestamp`**: Date and time of measurements
-            - **`GHI`**: Global Horizontal Irradiance ($W/m^2$)
-            - **`DNI`**: Direct Normal Irradiance ($W/m^2$)
-            - **`DHI`**: Diffuse Horizontal Irradiance ($W/m^2$)
-            - **`Tamb`**: Ambient Temperature ($^\circ C$)
-            - **`RH`**: Relative Humidity ($\%$)
-            - **`WS`**: Wind Speed ($m/s$)
-            - **`WSgust`**: Wind Gust Speed ($m/s$)
-            - **`ModA` & `ModB`**: Module sensor outputs ($W/m^2$ or $mV$)
-            - **`BP`**: Barometric Pressure ($hPa$)
-            - **`Precipitation`**: Rainfall ($mm$)
-            
-            ### Note
-            This dashboard supports solar radiation and meteorological datasets from any region or country.
-            Pre-configured paths are available for Benin, Sierra Leone, and Togo, or you can upload any custom solar CSV dataset.
+        # Prominent callout answering Question 1: Does it receive any other CSV files?
+        st.markdown("""
+        ### 🌍 Universal CSV File Compatibility
+        
+        > [!NOTE]
+        > **Yes! This platform receives and processes ANY CSV file** — not just the 3 sample countries (Benin, Sierra Leone, Togo).
+        > 
+        > Whether your data comes from **NASA POWER**, **NREL NSRDB**, **PVGIS**, **Solargis**, an on-site solar pyranometer logger, or any regional meteorological station worldwide:
+        > 1. **Flexible Uploading & Loading**: Use **'Upload Any CSV File'**, select any discovered CSV in `data/`, or provide a **'Custom File Path'**.
+        > 2. **Automatic Schema Standardization**: The engine auto-detects date/time columns (`timestamp`, `datetime`, `date_time`, `date`, `time`, `dt`, or separate Year/Month/Day columns) and case-insensitive metric aliases (`ghi`, `dni`, `dhi`, `temp`, `humidity`, `wind_speed`, etc.).
+        > 3. **Dynamic Metric Discovery**: Any numeric sensor or measurement column present in your CSV file is automatically identified, selectable, and plottable across all tabs.
+        """)
+        
+        # Prominent section answering Question 2: List abbreviations with full text on the Streamlit browser
+        st.markdown("### 📖 Solar Metric Abbreviations & Full Descriptive Names")
+        st.markdown("Comprehensive reference of standard measurement abbreviations, full descriptive names, SI units, and physical meanings:")
+        
+        render_glossary_overview()
+        
+        with st.expander("ℹ️ How to Use This Dashboard", expanded=False):
+            st.markdown(r"""
+            1. **Select or Upload Data**: Choose a preloaded country from Benin, Sierra Leone, or Togo, or upload any custom solar CSV file.
+            2. **Choose Metrics**: Select one or more metrics from the sidebar. Each metric is listed with its **abbreviation AND full name**.
+            3. **Filter Date Range**: Optionally focus on a specific season, month, or multi-week event.
+            4. **Explore Interactive Tabs**:
+               - **📊 Overview**: Summary statistics, distributions, and quick metrics.
+               - **📈 Time Series**: Temporal dynamics, diurnal fluctuations, and peak solar hours.
+               - **🔍 Detailed Analysis**: Distribution densities, bivariate scatter plots, 3D bubble charts, and wind profiles.
+               - **🌡️ Patterns**: 24-hour diurnal curves and 12-month seasonal profiles.
+               - **🔗 Correlations**: Pearson correlation heatmap and strongest variable couplings.
+               - **📋 Data Table**: Raw record inspection and filtered CSV export.
+               - **📖 Abbreviations & Glossary**: Complete metric dictionary and solar engineering terminology.
             """)
-        
         return
-    
-    # Data loaded successfully - show metrics selector
+
+    # Data loaded successfully - show metric selection with full text
     st.sidebar.markdown("---")
     st.sidebar.subheader("📊 Select Metrics")
     
     available_metrics = get_available_metrics(df)
     
     if not available_metrics:
-        st.error("❌ No valid metrics found in the dataset!")
+        st.error("❌ No valid numeric metrics found in the dataset!")
         return
+    
+    # Default selection prioritizing core solar irradiance metrics if present
+    default_selection = [m for m in ['GHI', 'DNI', 'DHI', 'Tamb', 'WS'] if m in available_metrics]
+    if not default_selection:
+        default_selection = available_metrics[:min(3, len(available_metrics))]
     
     # Multi-select for metrics
     selected_metrics = st.sidebar.multiselect(
         "Choose metrics to analyze:",
-        available_metrics,
-        default=available_metrics[:3] if len(available_metrics) >= 3 else available_metrics,
+        options=available_metrics,
+        default=default_selection,
         help="Select one or more metrics for analysis"
     )
     
@@ -396,121 +390,106 @@ def main():
         if use_date_filter:
             date_range = st.sidebar.date_input(
                 "Select date range:",
-                value=(min_date, max_date),
-                min_value=min_date,
-                max_value=max_date
+                value=(min_date.date(), max_date.date()),
+                min_value=min_date.date(),
+                max_value=max_date.date()
             )
             
             if len(date_range) == 2:
                 df = filter_by_date_range(df, date_range[0], date_range[1])
                 st.sidebar.info(f"📊 Filtered to {len(df):,} records")
-    
-    # Display basic dataset info
+    else:
+        st.sidebar.caption("ℹ️ No datetime column detected; displaying all records.")
+
+    # Dataset Summary in sidebar
     st.sidebar.markdown("---")
-    st.sidebar.subheader("ℹ️ Dataset Info")
+    st.sidebar.subheader("ℹ️ Dataset Information")
+    st.sidebar.write(f"**Dataset**: `{dataset_name}`")
     st.sidebar.write(f"**Records**: {len(df):,}")
     st.sidebar.write(f"**Columns**: {len(df.columns)}")
     if min_date and max_date:
-        st.sidebar.write(f"**Date Range**: {min_date.date()} to {max_date.date()}")
+        st.sidebar.write(f"**Time Span**: {min_date.date()} to {max_date.date()}")
     
-    # Metric abbreviations glossary in sidebar
-    st.sidebar.markdown("---")
-    with st.sidebar.expander("📖 Metric Glossary & Units", expanded=False):
-        st.markdown("""
-        - **GHI**: Global Horizontal Irradiance ($W/m^2$)
-        - **DNI**: Direct Normal Irradiance ($W/m^2$)
-        - **DHI**: Diffuse Horizontal Irradiance ($W/m^2$)
-        - **Tamb**: Ambient Temperature ($^\\circ C$)
-        - **RH**: Relative Humidity ($\\%$)
-        - **WS**: Wind Speed ($m/s$)
-        - **WSgust**: Wind Gust Speed ($m/s$)
-        - **ModA / ModB**: Module sensor outputs ($W/m^2$ / $mV$)
-        - **BP**: Barometric Pressure ($hPa$)
-        - **Precipitation**: Rainfall ($mm$)
-        """)
-    
-    # Main dashboard content with tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    # Main Dashboard Tabs (Includes dedicated Tab 7 for Abbreviations & Glossary)
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📊 Overview", 
         "📈 Time Series", 
         "🔍 Detailed Analysis",
         "🌡️ Patterns",
         "🔗 Correlations",
-        "📋 Data Table"
+        "📋 Data Table",
+        "📖 Abbreviations & Glossary"
     ])
     
+    # TAB 1: OVERVIEW
     with tab1:
-        st.header("📊 Overview & Summary Statistics")
+        st.header(f"📊 Overview & Summary Statistics — {dataset_name}")
         
-        # Metric Definitions & Units Expander
-        with st.expander("📖 Metric Abbreviations, Full Names & Units", expanded=False):
-            col_g1, col_g2 = st.columns(2)
-            with col_g1:
-                st.markdown("""
-                | Abbreviation | Full Name | Unit |
-                | :--- | :--- | :--- |
-                | **GHI** | Global Horizontal Irradiance | $\\text{W/m}^2$ |
-                | **DNI** | Direct Normal Irradiance | $\\text{W/m}^2$ |
-                | **DHI** | Diffuse Horizontal Irradiance | $\\text{W/m}^2$ |
-                | **Tamb** | Ambient Temperature | $^\\circ\\text{C}$ |
-                | **RH** | Relative Humidity | $\\%$ |
-                | **BP** | Barometric Pressure | $\\text{hPa}$ |
-                """)
-            with col_g2:
-                st.markdown("""
-                | Abbreviation | Full Name | Unit |
-                | :--- | :--- | :--- |
-                | **WS** | Wind Speed | $\\text{m/s}$ |
-                | **WSgust** | Wind Gust Speed | $\\text{m/s}$ |
-                | **ModA** | Sensor Module A Output | $\\text{W/m}^2 \\text{ / mV}$ |
-                | **ModB** | Sensor Module B Output | $\\text{W/m}^2 \\text{ / mV}$ |
-                | **Precipitation** | Rainfall Rate | $\\text{mm}$ |
-                """)
+        # Metric Definitions & Units Expander on Overview Tab
+        with st.expander("📖 Metric Abbreviations & Full Names Reference", expanded=False):
+            st.markdown("Quick reference table of abbreviations and full descriptive text:")
+            render_glossary_overview()
         
         if not selected_metrics:
-            st.warning("⚠️ Please select at least one metric from the sidebar.")
+            st.warning("⚠️ Please select at least one metric from the sidebar to display statistics.")
         else:
-            # Summary statistics with responsive layout
             col1, col2 = st.columns([2, 1], gap="large")
             
             with col1:
                 st.markdown("### 📈 Statistical Summary")
                 summary_df = get_summary_statistics(df, selected_metrics)
-                st.dataframe(
-                    summary_df.style.format("{:.2f}").background_gradient(cmap='Blues', subset=['Mean']),
-                    width="stretch",
-                    height=400
-                )
+                if not summary_df.empty:
+                    st.dataframe(
+                        summary_df.style.format({
+                            'Mean': '{:.2f}',
+                            'Median': '{:.2f}',
+                            'Std Dev': '{:.2f}',
+                            'Min': '{:.2f}',
+                            'Max': '{:.2f}',
+                            'Count': '{:,}'
+                        }).background_gradient(cmap='Blues', subset=['Mean']),
+                        width="stretch",
+                        height=380
+                    )
+                else:
+                    st.info("No statistics available for the selected columns.")
             
             with col2:
                 st.markdown("### ⚡ Quick Metrics")
-                metrics_to_show = selected_metrics[:4] if len(selected_metrics) >= 4 else selected_metrics
+                metrics_to_show = selected_metrics[:4]
                 for metric in metrics_to_show:
                     if metric in df.columns:
-                        mean_val = df[metric].mean()
-                        max_val = df[metric].max()
-                        delta_pct = ((mean_val / max_val) * 100) if max_val != 0 else 0
-                        st.metric(
-                            label=f"**{metric}**",
-                            value=f"{mean_val:.2f}",
-                            delta=f"{delta_pct:.1f}% of max",
-                            delta_color="normal"
-                        )
+                        metric_data = df[metric].dropna()
+                        if not metric_data.empty:
+                            mean_val = metric_data.mean()
+                            max_val = metric_data.max()
+                            delta_pct = ((mean_val / max_val) * 100) if max_val != 0 else 0
+                            full_name = get_metric_full_name(metric)
+                            unit = get_metric_unit(metric)
+                            unit_suffix = f" {unit}" if unit else ""
+                            st.metric(
+                                label=f"**{metric}** — {full_name}",
+                                value=f"{mean_val:.2f}{unit_suffix}",
+                                delta=f"{delta_pct:.1f}% of peak ({max_val:.1f}{unit_suffix})",
+                                delta_color="normal"
+                            )
             
-            # Boxplot comparison with enhanced styling
+            # Boxplot comparison
             st.markdown("---")
-            st.markdown("### 📊 Distribution Comparison")
-            st.markdown("*Compare the statistical distribution of selected metrics*")
-            fig_box = create_boxplot(df, selected_metrics, "Metric Distribution Comparison")
+            st.markdown("### 📊 Distribution Comparison (Boxplots)")
+            st.markdown("*Compare medians, quartiles, and standard deviations across selected metrics.*")
+            fig_box = create_boxplot(df, selected_metrics, f"Metric Distributions: {', '.join(selected_metrics)}")
             st.plotly_chart(fig_box, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
-    
+
+    # TAB 2: TIME SERIES
     with tab2:
         st.header("📈 Time Series Analysis")
         
-        if not selected_metrics:
+        if 'Timestamp' not in df.columns:
+            st.warning("⚠️ A valid Timestamp column is required for time series analysis. Please ensure your dataset includes a recognized date/time column.")
+        elif not selected_metrics:
             st.warning("⚠️ Please select at least one metric from the sidebar.")
         else:
-            # Metric selector for time series
             metric_for_ts = st.selectbox(
                 "Select metric for time series:",
                 selected_metrics,
@@ -518,74 +497,81 @@ def main():
             )
             
             if metric_for_ts:
-                # Time series plot with enhanced presentation
-                st.markdown(f"### 📈 {metric_for_ts} Trends Over Time")
+                fn = get_metric_full_name(metric_for_ts)
+                unit = get_metric_unit(metric_for_ts)
+                unit_str = f" ({unit})" if unit else ""
+                
+                st.markdown(f"### 📈 {metric_for_ts} — {fn} Over Time")
                 fig_ts = create_time_series(df, metric_for_ts)
                 st.plotly_chart(fig_ts, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
                 
-                # Top/Peak hours in columns
+                # Top peak records
                 st.markdown("---")
                 col_left, col_right = st.columns([1, 1], gap="large")
                 
                 with col_left:
-                    st.markdown(f"### 🏆 Top 10 Peak Hours")
+                    st.markdown(f"### 🏆 Top 10 Peak Readings for {metric_for_ts}")
                     top_df = get_top_hours(df, metric_for_ts, top_n=10)
                     if not top_df.empty:
                         st.dataframe(
                             top_df.style.format({metric_for_ts: "{:.2f}"}).highlight_max(axis=0, color='lightgreen'),
                             width="stretch",
-                            height=400
+                            height=380
                         )
                     else:
-                        st.info("No timestamp data available for peak hours analysis.")
+                        st.info("No peak timestamp data available.")
                 
                 with col_right:
-                    st.markdown("### 📊 Key Statistics")
-                    if metric_for_ts in df.columns:
-                        stats_container = st.container()
-                        with stats_container:
-                            metric_data = df[metric_for_ts].dropna()
-                            st.metric("Maximum", f"{metric_data.max():.2f}")
-                            st.metric("Average", f"{metric_data.mean():.2f}")
-                            st.metric("Minimum", f"{metric_data.min():.2f}")
-                            st.metric("Std Dev", f"{metric_data.std():.2f}")
-    
+                    st.markdown(f"### 📊 Summary Figures for {metric_for_ts}")
+                    metric_data = df[metric_for_ts].dropna()
+                    if not metric_data.empty:
+                        st.metric("Peak Maximum", f"{metric_data.max():.2f}{unit_str}")
+                        st.metric("Overall Average", f"{metric_data.mean():.2f}{unit_str}")
+                        st.metric("Standard Deviation", f"{metric_data.std():.2f}{unit_str}")
+                        st.metric("Minimum", f"{metric_data.min():.2f}{unit_str}")
+
+    # TAB 3: DETAILED ANALYSIS
     with tab3:
-        st.header("🔍 Detailed Analysis")
+        st.header("🔍 Detailed Analysis & Exploratory Plots")
         
         if not selected_metrics:
             st.warning("⚠️ Please select at least one metric from the sidebar.")
         else:
             analysis_type = st.selectbox(
-                "Select analysis type:",
+                "Select analysis view:",
                 ["Distribution", "Scatter Plot", "Bubble Chart", "Wind Analysis"]
             )
             
             if analysis_type == "Distribution":
-                metric = st.selectbox("Select metric:", selected_metrics, key="dist_metric")
-                st.markdown(f"### 📊 {metric} Distribution Analysis")
-                st.info("💡 This histogram shows how frequently different values occur in the dataset.")
+                metric = st.selectbox("Select metric for histogram:", selected_metrics, key="dist_metric")
+                fn = get_metric_full_name(metric)
+                st.markdown(f"### 📊 Probability Density Distribution: {metric} ({fn})")
                 fig = create_distribution_plot(df, metric)
                 st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
             
             elif analysis_type == "Scatter Plot":
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    x_metric = st.selectbox("X-axis:", selected_metrics, key="scatter_x")
+                    x_metric = st.selectbox("X-axis metric:", selected_metrics, key="scatter_x")
                 with col2:
-                    y_metric = st.selectbox("Y-axis:", selected_metrics, index=min(1, len(selected_metrics)-1), key="scatter_y")
+                    y_idx = min(1, len(selected_metrics)-1)
+                    y_metric = st.selectbox("Y-axis metric:", selected_metrics, index=y_idx, key="scatter_y")
                 with col3:
-                    color_option = st.selectbox("Color by:", ["None"] + selected_metrics, key="scatter_color")
+                    color_options = ["None"] + selected_metrics
+                    color_opt = st.selectbox(
+                        "Color by metric:", 
+                        color_options, 
+                        key="scatter_color"
+                    )
                 
-                color_metric = None if color_option == "None" else color_option
-                st.markdown(f"### 🔵 Scatter Analysis: {y_metric} vs {x_metric}")
-                st.info("💡 Explore the relationship between two metrics. Points show individual measurements.")
+                color_metric = None if color_opt == "None" else color_opt
+                st.markdown(f"### 🔵 Bivariate Scatter: {y_metric} vs {x_metric}")
                 fig = create_scatter_plot(df, x_metric, y_metric, color_metric)
                 st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
             
             elif analysis_type == "Bubble Chart":
                 if len(selected_metrics) < 3:
-                    st.warning("⚠️ Please select at least 3 metrics for bubble chart.")
+                    st.warning("⚠️ Please select at least 3 metrics from the sidebar for bubble chart analysis.")
                 else:
                     col1, col2, col3 = st.columns(3)
                     with col1:
@@ -593,162 +579,223 @@ def main():
                     with col2:
                         y_metric = st.selectbox("Y-axis:", selected_metrics, index=min(1, len(selected_metrics)-1), key="bubble_y")
                     with col3:
-                        size_metric = st.selectbox("Size:", selected_metrics, index=min(2, len(selected_metrics)-1), key="bubble_size")
+                        size_metric = st.selectbox("Bubble Size:", selected_metrics, index=min(2, len(selected_metrics)-1), key="bubble_size")
                     
-                    color_option = st.selectbox("Color by:", ["None"] + selected_metrics, key="bubble_color")
-                    color_metric = None if color_option == "None" else color_option
+                    color_options = ["None"] + selected_metrics
+                    color_opt = st.selectbox(
+                        "Color dimension:", 
+                        color_options, 
+                        key="bubble_color"
+                    )
+                    color_metric = None if color_opt == "None" else color_opt
                     
-                    st.markdown("### 🫧 Multi-Dimensional Bubble Chart")
-                    st.info("💡 Bubble size represents the third metric. Larger bubbles indicate higher values.")
+                    st.markdown(f"### 🫧 Multi-Dimensional Bubble Chart")
                     fig = create_bubble_chart(df, x_metric, y_metric, size_metric, color_metric)
                     st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
             
             elif analysis_type == "Wind Analysis":
                 if 'WS' in df.columns:
-                    st.markdown("### 🌬️ Wind Speed & Gust Analysis")
-                    st.info("💡 Compare wind speed and gust distributions to understand wind patterns.")
+                    st.markdown("### 🌬️ Wind Speed & Gust Velocity Analysis")
                     fig = create_wind_distribution(df)
                     st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
                     
-                    # Additional wind statistics
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("Avg Wind Speed", f"{df['WS'].mean():.2f} m/s")
+                        st.metric("Average Wind Speed (WS)", f"{df['WS'].mean():.2f} m/s")
                     with col2:
-                        st.metric("Max Wind Speed", f"{df['WS'].max():.2f} m/s")
+                        st.metric("Peak Wind Speed (WS)", f"{df['WS'].max():.2f} m/s")
                     with col3:
                         if 'WSgust' in df.columns:
-                            st.metric("Max Gust", f"{df['WSgust'].max():.2f} m/s")
+                            st.metric("Peak Wind Gust (WSgust)", f"{df['WSgust'].max():.2f} m/s")
                 else:
-                    st.warning("⚠️ Wind speed data (WS) not available in the dataset.")
-    
+                    st.warning("⚠️ Wind Speed (WS) data column not present in the current dataset.")
+
+    # TAB 4: TEMPORAL PATTERNS
     with tab4:
-        st.header("🌡️ Temporal Patterns")
+        st.header("🌡️ Temporal & Diurnal Patterns")
         
-        if not selected_metrics:
+        if 'Timestamp' not in df.columns:
+            st.warning("⚠️ Timestamp column not found in this dataset. Temporal profiles require timestamp observations.")
+        elif not selected_metrics:
             st.warning("⚠️ Please select at least one metric from the sidebar.")
-        elif 'Timestamp' not in df.columns:
-            st.warning("⚠️ Timestamp column not found in the dataset.")
         else:
-            metric = st.selectbox("Select metric for pattern analysis:", selected_metrics, key="pattern_metric")
+            metric = st.selectbox("Select metric for pattern profile:", selected_metrics, key="pattern_metric")
+            pattern_type = st.radio("Profile Type:", ["Hourly Diurnal Profile (24 Hours)", "Monthly Seasonal Profile (12 Months)"], horizontal=True)
             
-            pattern_type = st.radio(
-                "Pattern type:",
-                ["Hourly Pattern", "Monthly Pattern"],
-                horizontal=True
-            )
-            
-            if pattern_type == "Hourly Pattern":
-                st.markdown(f"### ⏰ Hourly Pattern: {metric}")
-                st.info("💡 This chart shows the average values across all days for each hour of the day.")
+            if "Hourly" in pattern_type:
                 fig = create_hourly_pattern(df, metric)
                 st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
-            
-            else:  # Monthly Pattern
-                st.markdown(f"### 📅 Monthly Pattern: {metric}")
-                st.info("💡 This chart shows the average values for each month in the dataset.")
+            else:
                 fig = create_monthly_pattern(df, metric)
                 st.plotly_chart(fig, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
-    
+
+    # TAB 5: CORRELATIONS
     with tab5:
-        st.header("🔗 Correlation Analysis")
+        st.header("🔗 Environmental Correlation Analysis")
         
         if len(selected_metrics) < 2:
-            st.warning("⚠️ Please select at least 2 metrics for correlation analysis.")
+            st.warning("⚠️ Please select at least 2 metrics from the sidebar for correlation analysis.")
         else:
-            st.markdown("### 🔗 Correlation Matrix Heatmap")
-            st.info("💡 Correlation values range from -1 to 1. Values closer to 1 indicate strong positive correlation, while values closer to -1 indicate strong negative correlation.")
+            st.markdown("### 🔗 Pearson Correlation Matrix")
+            st.info("💡 Values close to **+1.0** indicate strong positive correlation (e.g. GHI and Module Temperature), while values near **-1.0** indicate inverse correlation (e.g. Temperature and Relative Humidity).")
             fig_corr = create_correlation_heatmap(df, selected_metrics)
             st.plotly_chart(fig_corr, width="stretch", config={'displayModeBar': True, 'displaylogo': False})
             
-            # Show strongest correlations
+            # Key correlations ranking
             st.markdown("---")
-            st.markdown("### 🎯 Key Correlations")
+            st.markdown("### 🎯 Strongest Linear Relationships")
             corr_matrix = df[selected_metrics].corr()
             
-            # Get top correlations
-            correlations = []
+            pairs = []
             for i in range(len(corr_matrix.columns)):
                 for j in range(i+1, len(corr_matrix.columns)):
-                    correlations.append({
-                        'Metric 1': corr_matrix.columns[i],
-                        'Metric 2': corr_matrix.columns[j],
-                        'Correlation': corr_matrix.iloc[i, j]
+                    c1 = corr_matrix.columns[i]
+                    c2 = corr_matrix.columns[j]
+                    pairs.append({
+                        'Metric 1': f"{c1} ({get_metric_full_name(c1)})",
+                        'Metric 2': f"{c2} ({get_metric_full_name(c2)})",
+                        'Pearson r': corr_matrix.iloc[i, j]
                     })
             
-            if correlations:
-                corr_df = pd.DataFrame(correlations)
-                corr_df = corr_df.sort_values('Correlation', ascending=False, key=abs)
+            if pairs:
+                corr_df = pd.DataFrame(pairs)
+                corr_df['abs_r'] = corr_df['Pearson r'].abs()
+                corr_df = corr_df.sort_values('abs_r', ascending=False).drop(columns=['abs_r'])
                 
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown("#### 🔺 Strongest Positive")
-                    st.dataframe(
-                        corr_df.head(5).style.format({'Correlation': '{:.3f}'}).background_gradient(cmap='Greens'),
-                        width="stretch"
-                    )
+                    st.markdown("#### 🔺 Strongest Positive Correlations")
+                    pos_df = corr_df[corr_df['Pearson r'] > 0].head(5)
+                    if not pos_df.empty:
+                        st.dataframe(pos_df.style.format({'Pearson r': '{:.3f}'}).background_gradient(cmap='Greens'), width="stretch")
                 with col2:
-                    st.markdown("#### 🔻 Strongest Negative")
-                    st.dataframe(
-                        corr_df.tail(5).style.format({'Correlation': '{:.3f}'}).background_gradient(cmap='Reds'),
-                        width="stretch"
-                    )
-    
+                    st.markdown("#### 🔻 Strongest Negative Correlations")
+                    neg_df = corr_df[corr_df['Pearson r'] < 0].sort_values('Pearson r').head(5)
+                    if not neg_df.empty:
+                        st.dataframe(neg_df.style.format({'Pearson r': '{:.3f}'}).background_gradient(cmap='Reds'), width="stretch")
+
+    # TAB 6: DATA TABLE
     with tab6:
-        st.header("📋 Raw Data Table")
+        st.header("📋 Raw Data Records & Export")
         
-        st.markdown("### 📊 Dataset Preview")
-        st.info("💡 Explore your data directly. Use the controls below to customize the view.")
-        
-        # Display controls with better spacing
         col1, col2, col3 = st.columns([2, 2, 1])
         with col1:
-            num_rows = st.slider("Number of rows to display:", 5, 100, 20)
+            num_rows = st.slider("Display row count:", 5, 100, 25)
         with col2:
-            show_all_cols = st.checkbox("Show all columns", value=False)
+            show_all_cols = st.checkbox("Show all columns in dataset", value=False)
         with col3:
-            st.metric("Total Rows", f"{len(df):,}")
+            st.metric("Total Records", f"{len(df):,}")
         
-        # Display data
         if show_all_cols:
             st.dataframe(df.head(num_rows), width="stretch")
         else:
-            display_cols = ['Timestamp'] + selected_metrics if 'Timestamp' in df.columns else selected_metrics
-            display_cols = [col for col in display_cols if col in df.columns]
+            display_cols = (['Timestamp'] if 'Timestamp' in df.columns else []) + selected_metrics
+            display_cols = [c for c in display_cols if c in df.columns]
             st.dataframe(df[display_cols].head(num_rows), width="stretch")
         
-        # Download option with enhanced presentation
         st.markdown("---")
-        st.markdown("### 📥 Export Data")
-        
+        st.markdown("### 📥 Export Filtered Dataset")
         col1, col2 = st.columns([3, 1])
         with col1:
-            st.markdown("""
-            Download the filtered dataset in CSV format for further analysis.
-            This includes all currently selected metrics and applied filters.
-            """)
+            st.markdown("Download the currently loaded and filtered dataset in standard CSV format for external modeling, Python scripts, or reporting.")
         with col2:
             st.download_button(
                 label="⬇️ Download CSV",
                 data=convert_df_to_csv(df),
-                file_name=f"solar_data_filtered_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                file_name=f"solar_data_export_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv",
                 width="stretch"
             )
-    
-    # Enhanced Footer
+
+    # TAB 7: ABBREVIATIONS & GLOSSARY (NEW DEDICATED TAB)
+    with tab7:
+        st.header("📖 Solar Metric Abbreviations & Full Technical Reference")
+        st.markdown("""
+        This interactive reference lists all measurement abbreviations, full descriptive titles,
+        SI units, physical formulas, and engineering significance used across the dashboard and solar energy meteorology.
+        """)
+        
+        # Interactive Search & Filter
+        col_s1, col_s2 = st.columns([2, 1])
+        with col_s1:
+            search_query = st.text_input("🔍 Search abbreviations or full descriptive names:", placeholder="e.g., GHI, Irradiance, Temperature, Wind, ModA")
+        with col_s2:
+            all_categories = ["All Categories"] + sorted(list(set(
+                [data['category'] for data in METRIC_GLOSSARY.values()] + 
+                [data['category'] for data in GENERAL_SOLAR_TERMS.values()]
+            )))
+            selected_cat = st.selectbox("Filter by Category:", all_categories)
+        
+        # Filter glossary data
+        full_glossary = get_glossary_dataframe(include_general_terms=True)
+        filtered_glossary = full_glossary.copy()
+        
+        if selected_cat != "All Categories":
+            filtered_glossary = filtered_glossary[filtered_glossary['Category'] == selected_cat]
+        
+        if search_query:
+            q = search_query.lower()
+            filtered_glossary = filtered_glossary[
+                filtered_glossary['Abbreviation'].str.lower().str.contains(q) |
+                filtered_glossary['Full Name'].str.lower().str.contains(q) |
+                filtered_glossary['Description'].str.lower().str.contains(q)
+            ]
+        
+        st.markdown(f"**Showing {len(filtered_glossary)} definitions:**")
+        st.dataframe(
+            filtered_glossary,
+            width="stretch",
+            height=450,
+            column_config={
+                "Abbreviation": st.column_config.TextColumn("Abbreviation", width="small"),
+                "Full Name": st.column_config.TextColumn("Full Descriptive Text", width="medium"),
+                "Unit": st.column_config.TextColumn("Unit", width="small"),
+                "Category": st.column_config.TextColumn("Category", width="small"),
+                "Description": st.column_config.TextColumn("Definition & Operational Role", width="large")
+            }
+        )
+        
+        # Solar Irradiance Geometry & Physics Formula Section
+        st.markdown("---")
+        st.markdown("### ☀️ Fundamental Solar Irradiance Relationship")
+        st.markdown(r"""
+        The three fundamental solar radiation components (Global, Direct, and Diffuse) are linked by the astronomical cosine law:
+        
+        $$\text{GHI} = \text{DNI} \cdot \cos(\theta_z) + \text{DHI}$$
+        
+        Where:
+        - **$\text{GHI}$ (Global Horizontal Irradiance)**: Total radiant solar flux received on a horizontal plane ($W/m^2$).
+        - **$\text{DNI}$ (Direct Normal Irradiance)**: Radiant solar flux coming in a direct beam from the sun disk ($W/m^2$).
+        - **$\theta_z$ (Solar Zenith Angle)**: The angle between the sun's position and the local vertical (zenith).
+        - **$\text{DHI}$ (Diffuse Horizontal Irradiance)**: Solar radiant flux scattered downward by the atmosphere and clouds ($W/m^2$).
+        """)
+        
+        st.markdown("---")
+        st.markdown("### 🌍 Universal CSV Dataset Compatibility Guide")
+        st.markdown("""
+        | Data Provider / Source | Typical Timestamp Column | Typical Irradiance Columns | Compatibility Status |
+        | :--- | :--- | :--- | :--- |
+        | **10 Academy (Benin, Sierra Leone, Togo)** | `Timestamp` | `GHI`, `DNI`, `DHI`, `ModA`, `ModB` | ✅ Fully Supported |
+        | **NASA POWER API / CSV** | `YEAR`, `MO`, `DY`, `HR` | `ALLSKY_SFC_SW_DWN` (mapped to GHI), `T2M` | ✅ Auto-standardized |
+        | **NREL NSRDB** | `Year`, `Month`, `Day`, `Hour`, `Minute` | `GHI`, `DNI`, `DHI`, `Temperature` | ✅ Auto-standardized |
+        | **PVGIS (European Commission)** | `time` / `Date` | `G(h)` (GHI), `Gb(n)` (DNI), `Gd(h)` (DHI) | ✅ Auto-standardized |
+        | **Solargis / Meteonorm** | `DateTime` / `Date/Time` | `GHI`, `DNI`, `TEMP`, `WS` | ✅ Auto-standardized |
+        | **Custom Weather Stations / Inverters** | Any date or datetime format | Any numeric measurement columns | ✅ Dynamically Discovered |
+        """)
+
+    # Footer
     st.markdown("---")
     st.markdown("""
     <div class="footer">
-        <h3 style='color: #667eea; margin-bottom: 1rem;'>☀️ Solar Data Discovery</h3>
-        <p style='color: #666; font-size: 1rem; margin: 0.5rem 0;'>
-            Interactive Solar Radiation & Meteorological Analytics Platform
+        <h3 style='color: #667eea; margin-bottom: 0.5rem;'>☀️ Solar Data Discovery</h3>
+        <p style='color: #555; font-size: 1rem; margin: 0.25rem 0;'>
+            Production Analytics Platform for Solar Radiation & Meteorological Datasets
         </p>
-        <p style='color: #888; font-size: 0.9rem; margin: 0.5rem 0;'>
-            📊 Compatible with solar measurement datasets worldwide
+        <p style='color: #777; font-size: 0.85rem; margin: 0.25rem 0;'>
+            Compatible with Benin, Sierra Leone, Togo, and solar CSV datasets worldwide.
         </p>
-        <p style='color: #aaa; font-size: 0.85rem; margin-top: 1rem;'>
-            Version 2.0.0
+        <p style='color: #999; font-size: 0.8rem; margin-top: 0.75rem;'>
+            Version 2.1.0 • Built with Streamlit, Plotly, and Pandas
         </p>
     </div>
     """, unsafe_allow_html=True)

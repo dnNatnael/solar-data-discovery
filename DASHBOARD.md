@@ -31,17 +31,40 @@ Dashboard Architecture
 #### Functions
 
 **`validate_file_path(file_path: str) -> Tuple[bool, str]`**
-- Validates file existence and type
+- Validates file existence and extension (.csv, .txt, .tsv)
 - Returns validation status and error message
 
+**`read_csv_flexible(file_or_path: Any) -> pd.DataFrame`**
+- Reads CSV files with automatic fallback for comma, semicolon (European), or tab delimiters
+- Robust against different text encodings (UTF-8, Latin1)
+
+**`standardize_solar_dataframe(df: pd.DataFrame, parse_dates: bool = True) -> pd.DataFrame`**
+- Standardizes any arbitrary solar dataset worldwide
+- Auto-detects timestamp columns (timestamp, datetime, date_time, date, time, dt, epoch, or separate Year/Month/Day columns)
+- Maps common lowercase and alias names to standard metric abbreviations (GHI, DNI, DHI, Tamb, RH, WS, etc.)
+
 **`load_solar_data(file_path: str, parse_dates: bool = True) -> Optional[pd.DataFrame]`**
-- Loads CSV file with proper date parsing
-- Handles timestamp conversion
+- Loads CSV file with flexible parsing and standardization
 - Raises descriptive errors
 
 **`get_available_metrics(df: pd.DataFrame) -> list`**
-- Returns list of available solar metrics
-- Filters common metrics (GHI, DNI, DHI, etc.)
+- Returns list of available numeric solar and meteorological metrics
+- Prioritizes standard solar metrics first and dynamically includes any custom numeric sensor columns
+
+**`discover_local_csv_files(directory: str = "data") -> list`**
+- Scans and returns all CSV files present in the `data/` folder and subdirectories
+
+**`get_metric_full_name(metric: str) -> str`**
+- Returns the full descriptive text for any metric abbreviation (e.g. `GHI` -> `Global Horizontal Irradiance`)
+
+**`get_metric_unit(metric: str) -> str`**
+- Returns measurement unit string (e.g. `W/m²`, `°C`, `m/s`, `%`)
+
+**`get_metric_label(metric: str) -> str`**
+- Formats metric with abbreviation, full name, and unit for UI selectboxes
+
+**`get_glossary_dataframe() -> pd.DataFrame`**
+- Returns comprehensive DataFrame of abbreviations, full names, units, and definitions
 
 **`get_date_range(df: pd.DataFrame) -> Tuple[Optional[pd.Timestamp], Optional[pd.Timestamp]]`**
 - Extracts min and max dates from dataset
@@ -52,7 +75,7 @@ Dashboard Architecture
 - Returns original dataframe if no timestamp column
 
 **`get_summary_statistics(df: pd.DataFrame, metrics: list) -> pd.DataFrame`**
-- Calculates comprehensive statistics
+- Calculates comprehensive statistics (Mean, Median, Std Dev, Min, Max, Count)
 - Returns formatted statistics dataframe
 
 **`get_top_hours(df: pd.DataFrame, metric: str, top_n: int = 10) -> pd.DataFrame`**
