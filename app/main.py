@@ -16,6 +16,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from src.data_loader import (
     load_solar_data, 
+    standardize_solar_dataframe,
     get_available_metrics, 
     get_date_range,
     filter_by_date_range,
@@ -36,7 +37,7 @@ from src.plot_utils import (
 
 # Page configuration
 st.set_page_config(
-    page_title="Solar Challenge Dashboard",
+    page_title="Solar Data Discovery",
     page_icon="☀️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -244,8 +245,8 @@ def main():
     
     # Header with improved responsive design
     st.markdown('''
-        <div class="main-header">☀️ Solar Challenge Dashboard</div>
-        <div class="sub-header">Interactive Analysis of Solar Radiation Data from West Africa</div>
+        <div class="main-header">☀️ Solar Data Discovery</div>
+        <div class="sub-header">Interactive Analysis of Solar Radiation & Meteorological Data</div>
     ''', unsafe_allow_html=True)
     
     # Sidebar configuration
@@ -266,16 +267,15 @@ def main():
     
     if data_source == "Upload CSV File":
         uploaded_file = st.sidebar.file_uploader(
-            "Upload cleaned CSV file",
+            "Upload any solar CSV file",
             type=['csv'],
-            help="Upload your cleaned solar dataset CSV file"
+            help="Upload your solar or meteorological dataset CSV file"
         )
         
         if uploaded_file is not None:
             try:
-                df = pd.read_csv(uploaded_file)
-                if 'Timestamp' in df.columns:
-                    df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
+                raw_df = pd.read_csv(uploaded_file)
+                df = standardize_solar_dataframe(raw_df)
                 st.sidebar.success("✅ File loaded successfully!")
             except Exception as e:
                 st.sidebar.error(f"❌ Error loading file: {str(e)}")
@@ -345,20 +345,23 @@ def main():
                - Correlation patterns
                - And much more!
             
-            ### Expected Data Format
-            Your CSV file should contain columns such as:
-            - `Timestamp`: Date and time of measurements
-            - `GHI`: Global Horizontal Irradiance
-            - `DNI`: Direct Normal Irradiance
-            - `DHI`: Diffuse Horizontal Irradiance
-            - `Tamb`: Ambient Temperature
-            - `RH`: Relative Humidity
-            - `WS`: Wind Speed
-            - `WSgust`: Wind Gust Speed
+            ### Expected Data Format & Metric Abbreviations
+            Your CSV file can contain any solar or weather measurements, such as:
+            - **`Timestamp`**: Date and time of measurements
+            - **`GHI`**: Global Horizontal Irradiance ($W/m^2$)
+            - **`DNI`**: Direct Normal Irradiance ($W/m^2$)
+            - **`DHI`**: Diffuse Horizontal Irradiance ($W/m^2$)
+            - **`Tamb`**: Ambient Temperature ($^\circ C$)
+            - **`RH`**: Relative Humidity ($\%$)
+            - **`WS`**: Wind Speed ($m/s$)
+            - **`WSgust`**: Wind Gust Speed ($m/s$)
+            - **`ModA` & `ModB`**: Module sensor outputs ($W/m^2$ or $mV$)
+            - **`BP`**: Barometric Pressure ($hPa$)
+            - **`Precipitation`**: Rainfall ($mm$)
             
             ### Note
-            This dashboard is designed for the 10 Academy KAIM Week 0 Solar Challenge.
-            It supports analysis of solar radiation data from Benin, Sierra Leone, and Togo.
+            This dashboard supports solar radiation and meteorological datasets from any region or country.
+            Pre-configured paths are available for Benin, Sierra Leone, and Togo, or you can upload any custom solar CSV dataset.
             """)
         
         return
@@ -410,6 +413,22 @@ def main():
     if min_date and max_date:
         st.sidebar.write(f"**Date Range**: {min_date.date()} to {max_date.date()}")
     
+    # Metric abbreviations glossary in sidebar
+    st.sidebar.markdown("---")
+    with st.sidebar.expander("📖 Metric Glossary & Units", expanded=False):
+        st.markdown("""
+        - **GHI**: Global Horizontal Irradiance ($W/m^2$)
+        - **DNI**: Direct Normal Irradiance ($W/m^2$)
+        - **DHI**: Diffuse Horizontal Irradiance ($W/m^2$)
+        - **Tamb**: Ambient Temperature ($^\\circ C$)
+        - **RH**: Relative Humidity ($\\%$)
+        - **WS**: Wind Speed ($m/s$)
+        - **WSgust**: Wind Gust Speed ($m/s$)
+        - **ModA / ModB**: Module sensor outputs ($W/m^2$ / $mV$)
+        - **BP**: Barometric Pressure ($hPa$)
+        - **Precipitation**: Rainfall ($mm$)
+        """)
+    
     # Main dashboard content with tabs
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📊 Overview", 
@@ -422,6 +441,31 @@ def main():
     
     with tab1:
         st.header("📊 Overview & Summary Statistics")
+        
+        # Metric Definitions & Units Expander
+        with st.expander("📖 Metric Abbreviations, Full Names & Units", expanded=False):
+            col_g1, col_g2 = st.columns(2)
+            with col_g1:
+                st.markdown("""
+                | Abbreviation | Full Name | Unit |
+                | :--- | :--- | :--- |
+                | **GHI** | Global Horizontal Irradiance | $\\text{W/m}^2$ |
+                | **DNI** | Direct Normal Irradiance | $\\text{W/m}^2$ |
+                | **DHI** | Diffuse Horizontal Irradiance | $\\text{W/m}^2$ |
+                | **Tamb** | Ambient Temperature | $^\\circ\\text{C}$ |
+                | **RH** | Relative Humidity | $\\%$ |
+                | **BP** | Barometric Pressure | $\\text{hPa}$ |
+                """)
+            with col_g2:
+                st.markdown("""
+                | Abbreviation | Full Name | Unit |
+                | :--- | :--- | :--- |
+                | **WS** | Wind Speed | $\\text{m/s}$ |
+                | **WSgust** | Wind Gust Speed | $\\text{m/s}$ |
+                | **ModA** | Sensor Module A Output | $\\text{W/m}^2 \\text{ / mV}$ |
+                | **ModB** | Sensor Module B Output | $\\text{W/m}^2 \\text{ / mV}$ |
+                | **Precipitation** | Rainfall Rate | $\\text{mm}$ |
+                """)
         
         if not selected_metrics:
             st.warning("⚠️ Please select at least one metric from the sidebar.")
@@ -696,15 +740,15 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div class="footer">
-        <h3 style='color: #667eea; margin-bottom: 1rem;'>☀️ Solar Challenge Dashboard</h3>
+        <h3 style='color: #667eea; margin-bottom: 1rem;'>☀️ Solar Data Discovery</h3>
         <p style='color: #666; font-size: 1rem; margin: 0.5rem 0;'>
-            <strong>10 Academy KAIM Week 0</strong> | Built with ❤️ using Streamlit
+            Interactive Solar Radiation & Meteorological Analytics Platform
         </p>
         <p style='color: #888; font-size: 0.9rem; margin: 0.5rem 0;'>
-            📊 Data sources: Benin, Sierra Leone, and Togo Solar Radiation Measurements
+            📊 Compatible with solar measurement datasets worldwide
         </p>
         <p style='color: #aaa; font-size: 0.85rem; margin-top: 1rem;'>
-            Version 1.0.0 | Last Updated: November 2024
+            Version 2.0.0
         </p>
     </div>
     """, unsafe_allow_html=True)

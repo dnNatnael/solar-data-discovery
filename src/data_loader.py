@@ -36,6 +36,34 @@ def validate_file_path(file_path: str) -> Tuple[bool, str]:
     return True, ""
 
 
+def standardize_solar_dataframe(df: pd.DataFrame, parse_dates: bool = True) -> pd.DataFrame:
+    """
+    Standardize timestamp column names and parse dates to support any solar dataset
+    
+    Args:
+        df: Input DataFrame
+        parse_dates: Whether to parse the timestamp column as datetime
+        
+    Returns:
+        Standardized DataFrame
+    """
+    df = df.copy()
+    
+    # Auto-detect timestamp column if 'Timestamp' is not directly present
+    if 'Timestamp' not in df.columns:
+        date_candidates = ['timestamp', 'datetime', 'date_time', 'date', 'time', 'dt', 'Date', 'DateTime', 'Time']
+        for col in date_candidates:
+            if col in df.columns:
+                df = df.rename(columns={col: 'Timestamp'})
+                break
+    
+    # Parse timestamp if it exists and parse_dates is True
+    if parse_dates and 'Timestamp' in df.columns:
+        df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
+    
+    return df
+
+
 def load_solar_data(file_path: str, parse_dates: bool = True) -> Optional[pd.DataFrame]:
     """
     Load solar dataset from CSV file with proper parsing
@@ -55,12 +83,7 @@ def load_solar_data(file_path: str, parse_dates: bool = True) -> Optional[pd.Dat
     try:
         # Load the CSV file
         df = pd.read_csv(file_path)
-        
-        # Parse timestamp if it exists and parse_dates is True
-        if parse_dates and 'Timestamp' in df.columns:
-            df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
-        
-        return df
+        return standardize_solar_dataframe(df, parse_dates=parse_dates)
     
     except Exception as e:
         raise Exception(f"Error loading CSV file: {str(e)}")
@@ -68,7 +91,9 @@ def load_solar_data(file_path: str, parse_dates: bool = True) -> Optional[pd.Dat
 
 def get_available_metrics(df: pd.DataFrame) -> list:
     """
-    Get list of available numeric metrics from the dataframe
+    Get list of available numeric metrics from the dataframe.
+    Prioritizes standard solar metrics first, and automatically includes
+    any other numeric measurement columns so any CSV can be analyzed.
     
     Args:
         df: Solar dataset DataFrame
@@ -76,14 +101,21 @@ def get_available_metrics(df: pd.DataFrame) -> list:
     Returns:
         List of metric column names
     """
-    # Common solar metrics
-    potential_metrics = ['GHI', 'DNI', 'DHI', 'Tamb', 'RH', 'WS', 'WSgust', 
+    # Standard solar metrics
+    priority_metrics = ['GHI', 'DNI', 'DHI', 'Tamb', 'RH', 'WS', 'WSgust', 
                         'ModA', 'ModB', 'BP', 'Precipitation']
     
-    # Filter to only columns that exist in the dataframe
-    available = [col for col in potential_metrics if col in df.columns]
+    # Priority columns present in dataframe
+    available = [col for col in priority_metrics if col in df.columns]
     
-    return available
+    # Also discover any other numeric metrics (e.g., from other weather stations or countries)
+    ignored_cols = {'id', 'index', 'unnamed: 0', 'year', 'month', 'day', 'hour'}
+    other_numeric = [
+        col for col in df.select_dtypes(include=['number']).columns 
+        if col not in available and col.lower() not in ignored_cols
+    ]
+    
+    return available + other_numeric
 
 
 def get_date_range(df: pd.DataFrame) -> Tuple[Optional[pd.Timestamp], Optional[pd.Timestamp]]:

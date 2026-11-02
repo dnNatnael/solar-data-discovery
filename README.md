@@ -1,21 +1,21 @@
-# ☀️ Solar Challenge Week 0 - 10 Academy KAIM
+# ☀️ Solar Data Discovery
 
-A comprehensive data analysis and visualization project for solar radiation data from West African countries (Benin, Sierra Leone, and Togo). This project includes exploratory data analysis, statistical insights, and an **interactive Streamlit dashboard** for visualizing solar measurement insights.
+A comprehensive data analysis and interactive visualization platform for solar radiation and meteorological data. This project includes exploratory data analysis, statistical insights, and an **interactive Streamlit dashboard** compatible with solar measurement datasets worldwide (with initial focus on Benin, Sierra Leone, and Togo).
 
 ## 🎯 Project Overview
 
-This project analyzes solar radiation measurement data to identify key patterns, trends, and insights that can inform solar energy investments in the region. The analysis includes:
+This project analyzes solar radiation measurement data to identify key patterns, trends, and insights that inform solar energy investments and system design. The analysis includes:
 
 - **Data Cleaning & Quality Assessment**
-- **Statistical Analysis**
-- **Time Series Analysis**
-- **Correlation Studies**
-- **Interactive Dashboard** for real-time visualization
+- **Statistical Analysis & Distribution Modeling**
+- **Time Series & Diurnal Pattern Analysis**
+- **Environmental Correlation Studies**
+- **Interactive Web Dashboard** for real-time visualization & CSV export
 
 ## 📁 Project Structure
 
 ```
-solar-challenge-week0/
+solar-data-discovery/
 ├── .github/
 │   └── workflows/
 │       └── unittests.yml          # CI/CD workflows
