@@ -6,6 +6,7 @@ Provides functions to load, standardize, validate, and document solar datasets f
 import pandas as pd
 import numpy as np
 import os
+import io
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List
 
@@ -273,6 +274,27 @@ METRIC_ALIASES: Dict[str, str] = {
     
     'cleaning': 'Cleaning',
     'cleaned': 'Cleaning',
+
+    # NASA POWER and satellite reanalysis aliases
+    'allsky_sfc_sw_dwn': 'GHI',
+    'all_sky_surface_shortwave_downward_irradiance': 'GHI',
+    'allsky_sfc_sw_dni': 'DNI',
+    'all_sky_surface_shortwave_direct_normal_irradiance': 'DNI',
+    'allsky_sfc_sw_diff': 'DHI',
+    'all_sky_surface_diffuse_horizontal_irradiance': 'DHI',
+    'clrsky_sfc_sw_dwn': 'GHI_ClearSky',
+    'allsky_kt': 'Clearness_Index',
+    't2m': 'Tamb',
+    't2m_min': 'Tamb_Min',
+    't2m_max': 'Tamb_Max',
+    't2mdew': 'Dew_Point',
+    'rh2m': 'RH',
+    'ws10m': 'WS',
+    'ws2m': 'WS',
+    'wd10m': 'WD',
+    'wd2m': 'WD',
+    'ps': 'BP',
+    'prectotcorr': 'Precipitation',
 }
 
 
@@ -400,31 +422,85 @@ def validate_file_path(file_path: str) -> Tuple[bool, str]:
 
 def read_csv_flexible(file_or_path: Any) -> pd.DataFrame:
     """
-    Read CSV file with automatic delimiter and encoding fallback detection.
+    Read CSV file with automatic delimiter, encoding, and metadata header detection.
     Supports standard comma-separated files, semicolon-separated (European),
-    and tab-separated datasets.
+    tab-separated datasets, and NASA POWER datasets with '-BEGIN HEADER-' / '-END HEADER-' blocks.
+    Automatically handles missing value sentinels (-999, -999.0, na, NA).
     """
+    na_vals = ['-999', '-999.0', -999, -999.0, '-9999', '-9999.0', 'na', 'NA', 'null', 'None', '-']
+
+    # 1. Extract raw text from file_or_path (handles path strings, Path, BytesIO, StringIO, UploadedFile)
+    text = None
+    if isinstance(file_or_path, (str, Path)):
+        p = Path(file_or_path)
+        if p.exists() and p.is_file():
+            try:
+                text = p.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                text = p.read_text(encoding='latin1', errors='replace')
+    elif hasattr(file_or_path, 'read'):
+        if hasattr(file_or_path, 'seek'):
+            file_or_path.seek(0)
+        raw = file_or_path.read()
+        if hasattr(file_or_path, 'seek'):
+            file_or_path.seek(0)
+        if isinstance(raw, bytes):
+            try:
+                text = raw.decode('utf-8')
+            except UnicodeDecodeError:
+                text = raw.decode('latin1', errors='replace')
+        else:
+            text = str(raw)
+    elif isinstance(file_or_path, bytes):
+        try:
+            text = file_or_path.decode('utf-8')
+        except UnicodeDecodeError:
+            text = file_or_path.decode('latin1', errors='replace')
+
+    # If text was extracted, clean preambles and parse
+    if text is not None:
+        # Check for NASA POWER header block ending with '-END HEADER-'
+        if '-END HEADER-' in text.upper():
+            lines = text.splitlines(keepends=True)
+            end_idx = -1
+            for i, line in enumerate(lines):
+                if '-END HEADER-' in line.upper():
+                    end_idx = i
+                    break
+            if end_idx != -1 and end_idx + 1 < len(lines):
+                text = ''.join(lines[end_idx + 1:]).lstrip('\r\n ')
+
+        # Try standard comma-separated read first
+        try:
+            df = pd.read_csv(io.StringIO(text), na_values=na_vals)
+            if len(df.columns) == 1 and ';' in str(df.columns[0]):
+                df = pd.read_csv(io.StringIO(text), sep=';', na_values=na_vals)
+            elif len(df.columns) == 1 and '\t' in str(df.columns[0]):
+                df = pd.read_csv(io.StringIO(text), sep='\t', na_values=na_vals)
+            return df
+        except Exception:
+            try:
+                return pd.read_csv(io.StringIO(text), sep=None, engine='python', na_values=na_vals)
+            except Exception:
+                return pd.read_csv(io.StringIO(text), encoding='latin1', sep=None, engine='python', na_values=na_vals)
+
+    # Fallback to direct pd.read_csv if file_or_path wasn't extracted as text
     try:
-        # Standard fast comma-separated read
-        df = pd.read_csv(file_or_path)
-        # If read into a single column containing semicolons, re-parse with semicolon delimiter
+        df = pd.read_csv(file_or_path, na_values=na_vals)
         if len(df.columns) == 1 and ';' in str(df.columns[0]):
             if hasattr(file_or_path, 'seek'):
                 file_or_path.seek(0)
-            df = pd.read_csv(file_or_path, sep=';')
+            df = pd.read_csv(file_or_path, sep=';', na_values=na_vals)
         return df
     except Exception:
-        # Reset file pointer if file-like object
         if hasattr(file_or_path, 'seek'):
             file_or_path.seek(0)
         try:
-            # Python engine with automatic delimiter sniffing
-            return pd.read_csv(file_or_path, sep=None, engine='python')
+            return pd.read_csv(file_or_path, sep=None, engine='python', na_values=na_vals)
         except Exception:
             if hasattr(file_or_path, 'seek'):
                 file_or_path.seek(0)
-            # Fallback with latin1 encoding
-            return pd.read_csv(file_or_path, encoding='latin1', sep=None, engine='python')
+            return pd.read_csv(file_or_path, encoding='latin1', sep=None, engine='python', na_values=na_vals)
 
 
 def standardize_solar_dataframe(df: pd.DataFrame, parse_dates: bool = True) -> pd.DataFrame:
@@ -464,18 +540,29 @@ def standardize_solar_dataframe(df: pd.DataFrame, parse_dates: bool = True) -> p
         if matched_col:
             df = df.rename(columns={matched_col: 'Timestamp'})
         else:
-            # Check if separate Year, Month, Day columns exist
+            # Check if separate Year, Month, Day columns exist (supports year/yr, month/mo, day/dy, hour/hr)
             cols_lower = {c.lower().strip(): c for c in df.columns}
-            if 'year' in cols_lower and 'month' in cols_lower and 'day' in cols_lower:
-                time_components = [cols_lower['year'], cols_lower['month'], cols_lower['day']]
-                if 'hour' in cols_lower:
-                    time_components.append(cols_lower['hour'])
-                    if 'minute' in cols_lower:
-                        time_components.append(cols_lower['minute'])
-                        if 'second' in cols_lower:
-                            time_components.append(cols_lower['second'])
+            col_year = cols_lower.get('year') or cols_lower.get('yr')
+            col_month = cols_lower.get('month') or cols_lower.get('mo')
+            col_day = cols_lower.get('day') or cols_lower.get('dy')
+            col_hour = cols_lower.get('hour') or cols_lower.get('hr')
+            col_minute = cols_lower.get('minute') or cols_lower.get('min')
+            col_second = cols_lower.get('second') or cols_lower.get('sec')
+
+            if col_year and col_month and col_day:
+                dt_dict = {
+                    'year': df[col_year],
+                    'month': df[col_month],
+                    'day': df[col_day]
+                }
+                if col_hour:
+                    dt_dict['hour'] = df[col_hour]
+                    if col_minute:
+                        dt_dict['minute'] = df[col_minute]
+                        if col_second:
+                            dt_dict['second'] = df[col_second]
                 try:
-                    df['Timestamp'] = pd.to_datetime(df[time_components])
+                    df['Timestamp'] = pd.to_datetime(dt_dict, errors='coerce')
                 except Exception:
                     pass
 
@@ -553,7 +640,9 @@ def get_available_metrics(df: pd.DataFrame) -> List[str]:
     # Automatically discover any other numeric measurement columns (e.g., from other weather stations or sensors)
     ignored_col_names = {
         'id', 'index', 'unnamed: 0', 'year', 'month', 'day', 'hour', 
-        'minute', 'second', 'comments', 'comment', 'notes'
+        'minute', 'second', 'comments', 'comment', 'notes',
+        'yr', 'mo', 'dy', 'hr', 'min', 'sec',
+        'lat', 'lon', 'latitude', 'longitude', 'elevation'
     }
     
     other_numeric = []

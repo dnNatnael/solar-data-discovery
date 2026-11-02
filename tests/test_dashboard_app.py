@@ -101,3 +101,39 @@ def test_landing_upload_and_reset():
 
     # App must return to 0 tabs and no data displayed
     assert len(at.tabs) == 0, "Tabs should be removed after clicking reset button"
+
+
+def test_nasa_power_csv_upload():
+    """
+    Verify that a NASA POWER CSV file with metadata header preamble
+    and -999 missing values uploads and displays visualizations without errors.
+    """
+    nasa_content = (
+        "-BEGIN HEADER-\n"
+        "NASA/POWER Source Native Resolution Daily Data\n"
+        "Dates (month/day/year): 09/01/2026 through 11/02/2026 in LST\n"
+        "Location: Regional\n"
+        "elevation from MERRA-2: Average for 0.5 x 0.625 degree lat/lon region = na meters\n"
+        "The value for missing source data: -999\n"
+        "parameter(s):\n"
+        "ALLSKY_SFC_SW_DWN     CERES SYN1deg All Sky Irradiance\n"
+        "-END HEADER-\n"
+        "LAT,LON,YEAR,MO,DY,ALLSKY_SFC_SW_DWN\n"
+        "31.5,-15.5,2026,9,1,6.6398\n"
+        "31.5,-14.5,2026,9,1,-999.0\n"
+        "31.5,-13.5,2026,9,2,5.4321\n"
+    ).encode('utf-8')
+
+    at = AppTest.from_file(MAIN_APP_PATH, default_timeout=30)
+    at.run()
+    assert len(at.tabs) == 0
+
+    sidebar_uploaders = at.sidebar.file_uploader
+    assert len(sidebar_uploaders) > 0
+    sidebar_uploaders[0].upload(filename="POWER_Daily.csv", content=nasa_content).run()
+
+    assert not at.exception, f"Exceptions after NASA POWER upload: {at.exception}"
+    assert len(at.tabs) == 7, "All 7 tabs should render after NASA POWER upload"
+    assert len(at.sidebar.success) > 0
+    assert "POWER_Daily.csv" in at.sidebar.success[0].value
+

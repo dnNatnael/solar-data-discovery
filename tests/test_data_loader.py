@@ -172,3 +172,65 @@ def test_discover_local_csv_files():
     assert len(files) >= 3  # Benin, Sierra Leone, Togo
     assert any('benin' in f for f in files)
 
+
+def test_read_csv_flexible_nasa_power_format(tmp_path):
+    """Test parsing NASA POWER datasets with metadata header block and -999 missing values."""
+    import io
+    nasa_content = (
+        "-BEGIN HEADER-\n"
+        "NASA/POWER Source Native Resolution Daily Data\n"
+        "Dates (month/day/year): 09/01/2026 through 11/02/2026 in LST\n"
+        "Location: Regional\n"
+        "elevation from MERRA-2: Average for 0.5 x 0.625 degree lat/lon region = na meters\n"
+        "The value for missing source data that cannot be computed: -999\n"
+        "parameter(s):\n"
+        "ALLSKY_SFC_SW_DWN     CERES SYN1deg All Sky Irradiance (kW-hr/m^2/day)\n"
+        "-END HEADER-\n"
+        "LAT,LON,YEAR,MO,DY,ALLSKY_SFC_SW_DWN\n"
+        "31.5,-15.5,2026,9,1,6.6398\n"
+        "31.5,-14.5,2026,9,1,-999.0\n"
+        "31.5,-13.5,2026,9,2,5.4321\n"
+    )
+    # Test from file path
+    csv_file = tmp_path / "nasa_power_sample.csv"
+    csv_file.write_text(nasa_content)
+    
+    df_from_path = read_csv_flexible(str(csv_file))
+    assert list(df_from_path.columns) == ['LAT', 'LON', 'YEAR', 'MO', 'DY', 'ALLSKY_SFC_SW_DWN']
+    assert len(df_from_path) == 3
+    assert np.isnan(df_from_path['ALLSKY_SFC_SW_DWN'].iloc[1])
+
+    # Test from file-like BytesIO (simulating Streamlit UploadedFile)
+    bytes_io = io.BytesIO(nasa_content.encode('utf-8'))
+    df_from_bytes = read_csv_flexible(bytes_io)
+    assert list(df_from_bytes.columns) == ['LAT', 'LON', 'YEAR', 'MO', 'DY', 'ALLSKY_SFC_SW_DWN']
+    assert len(df_from_bytes) == 3
+    assert np.isnan(df_from_bytes['ALLSKY_SFC_SW_DWN'].iloc[1])
+
+
+def test_standardize_nasa_power_columns():
+    """Verify standardization of NASA POWER separate date columns and parameter aliases."""
+    raw_df = pd.DataFrame({
+        'LAT': [31.5, 31.5],
+        'LON': [-15.5, -15.5],
+        'YEAR': [2026, 2026],
+        'MO': [9, 9],
+        'DY': [1, 2],
+        'ALLSKY_SFC_SW_DWN': [6.6398, 5.4321]
+    })
+    std_df = standardize_solar_dataframe(raw_df)
+    assert 'Timestamp' in std_df.columns
+    assert pd.api.types.is_datetime64_any_dtype(std_df['Timestamp'])
+    assert std_df['Timestamp'].iloc[0] == pd.Timestamp('2026-09-01')
+    assert 'GHI' in std_df.columns
+    assert std_df['GHI'].iloc[0] == 6.6398
+
+    # Ensure coordinates and date components are excluded from metric discovery
+    metrics = get_available_metrics(std_df)
+    assert 'GHI' in metrics
+    assert 'LAT' not in metrics
+    assert 'LON' not in metrics
+    assert 'MO' not in metrics
+    assert 'DY' not in metrics
+
+
