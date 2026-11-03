@@ -151,6 +151,112 @@ st.markdown("""
         border-radius: 12px;
         margin-top: 2rem;
     }
+
+    /* About Solar Data Hover Feature */
+    .solar-about-wrapper {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+        margin: 6px 0 10px 0;
+        z-index: 99;
+    }
+    
+    .solar-about-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #ffffff !important;
+        padding: 5px 14px;
+        border-radius: 20px;
+        font-size: 0.84rem;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        transition: all 0.2s ease-in-out;
+        user-select: none;
+    }
+    
+    .solar-about-wrapper:hover .solar-about-badge {
+        background: linear-gradient(135deg, #5b70d6 0%, #683e92 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.45);
+    }
+    
+    .solar-about-card {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        width: 360px;
+        max-width: 90vw;
+        background: #1e1e2e;
+        color: #e2e8f0;
+        padding: 14px 16px;
+        border-radius: 10px;
+        border: 1px solid #4a5568;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+        z-index: 99999;
+        font-size: 0.82rem;
+        line-height: 1.45;
+        text-align: left;
+        transform: translateY(6px);
+        transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+        pointer-events: none;
+    }
+
+    .solar-about-card-sidebar {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        width: 275px;
+        max-width: 85vw;
+        background: #1e1e2e;
+        color: #e2e8f0;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #4a5568;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+        z-index: 99999;
+        font-size: 0.8rem;
+        line-height: 1.4;
+        text-align: left;
+        transform: translateY(6px);
+        transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+        pointer-events: none;
+    }
+
+    .solar-about-wrapper:hover .solar-about-card,
+    .solar-about-wrapper:hover .solar-about-card-sidebar {
+        visibility: visible;
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+
+    .solar-about-card h4, .solar-about-card-sidebar h4 {
+        color: #f6ad55;
+        font-size: 0.92rem;
+        margin: 0 0 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        padding-bottom: 4px;
+    }
+
+    .solar-about-card .section-title, .solar-about-card-sidebar .section-title {
+        color: #90cdf4;
+        font-weight: 700;
+        margin-top: 6px;
+        margin-bottom: 2px;
+        font-size: 0.83rem;
+    }
+
+    .solar-about-card p, .solar-about-card-sidebar p {
+        color: #cbd5e0;
+        margin: 0 0 6px 0;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -169,6 +275,35 @@ def load_data_cached(file_path: str):
 def convert_df_to_csv(data: pd.DataFrame) -> bytes:
     """Cache CSV conversion so it is not re-computed on every rerun"""
     return data.to_csv(index=False).encode('utf-8')
+
+
+def render_about_solar_hover_html(side: str = "main") -> str:
+    """Generate HTML markup for the 'About Solar Data' hover feature with responsive popover card."""
+    card_class = "solar-about-card-sidebar" if side == "sidebar" else "solar-about-card"
+    return f"""
+    <div class="solar-about-wrapper" title="About Solar Data: Hover to view website overview, solar metrics, and project operation">
+        <div class="solar-about-badge">
+            <span>ℹ️</span>
+            <span>About Solar Data</span>
+            <span style="font-size: 0.72rem; opacity: 0.85;">(Hover for info)</span>
+        </div>
+        <div class="{card_class}">
+            <h4>☀️ About Solar Data Discovery</h4>
+            <div class="section-title">🌐 The Website</div>
+            <p>
+                An interactive web-based exploratory data analysis (EDA) platform engineered to upload, validate, clean, and visualize solar radiation and meteorological datasets from any station, satellite service, or country worldwide.
+            </p>
+            <div class="section-title">☀️ The Solar Data</div>
+            <p>
+                Measures key solar irradiance components (<strong>GHI</strong>, <strong>DNI</strong>, <strong>DHI</strong>) alongside meteorological parameters (temperature, wind velocity, relative humidity, barometric pressure) crucial for solar PV site selection, yield forecasting, and performance ratio analysis.
+            </p>
+            <div class="section-title">⚙️ How the Project Works</div>
+            <p>
+                Operates via an automated, client-side data pipeline: CSV upload &rarr; intelligent delimiter sniffing & metadata preamble stripping &rarr; temporal standardization &rarr; dynamic metric discovery &rarr; multi-tab interactive Plotly analytics.
+            </p>
+        </div>
+    </div>
+    """
 
 
 def render_glossary_overview():
@@ -237,6 +372,12 @@ def main():
         <div class="main-header">☀️ Solar Data Discovery</div>
         <div class="sub-header">Interactive Analytics Platform for Solar Radiation & Meteorological Datasets Worldwide</div>
     ''', unsafe_allow_html=True)
+    
+    # "About Solar Data" hover card in the main header
+    st.markdown(
+        f'<div style="text-align: center; margin-bottom: 1.25rem;">{render_about_solar_hover_html(side="main")}</div>',
+        unsafe_allow_html=True
+    )
     
     # Sidebar configuration
     st.sidebar.title("⚙️ Dataset Configuration")
@@ -382,6 +523,25 @@ def main():
         
         render_glossary_overview()
         
+        # Website Overview section on landing page
+        st.markdown("### 🌐 Website Overview & Project Operation")
+        st.markdown(render_about_solar_hover_html(side="main"), unsafe_allow_html=True)
+        col_ov1, col_ov2 = st.columns(2)
+        with col_ov1:
+            st.markdown("""
+            #### 🚀 How the Website Works
+            - **Upload Any Solar Dataset**: Select or drag-and-drop any CSV file from solar farms, meteorological stations, NASA POWER, or NREL NSRDB.
+            - **Automatic Cleaning & Standardization**: Auto-skips preamble headers, converts missing value sentinels (`-999`), and harmonizes timestamps.
+            - **7 Interactive Analytical Tabs**: Explore summary statistics, time series, diurnal/seasonal patterns, bivariate correlations, and solar metrics dictionary.
+            """)
+        with col_ov2:
+            st.markdown("""
+            #### ⚙️ How the Project Operates
+            - **Decoupled Architecture**: Clean separation between ingestion (`src/data_loader.py`), visualization (`src/plot_utils.py`), and reactive Streamlit UI (`app/main.py`).
+            - **In-Memory Analytics**: Fast, private, client-side data handling without persistent database bottlenecks or security risks.
+            - **Dynamic Sensor Discovery**: Automatically detects and adapts to whatever numeric columns are present in your uploaded dataset.
+            """)
+
         with st.expander("ℹ️ How to Use This Dashboard", expanded=False):
             st.markdown(r"""
             1. **Upload Data**: Upload any solar or meteorological CSV dataset using the sidebar or center upload box.
@@ -453,6 +613,18 @@ def main():
     if min_date and max_date:
         st.sidebar.write(f"**Time Span**: {min_date.date()} to {max_date.date()}")
     
+    # Website Overview section below Dataset Information
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🌐 Website Overview")
+    st.sidebar.markdown(render_about_solar_hover_html(side="sidebar"), unsafe_allow_html=True)
+    st.sidebar.markdown("""
+    **How the Website Works:**  
+    Upload any solar or meteorological CSV dataset to clean metadata headers, standardize date/times, and explore interactive analytics across 7 specialized tabs.
+
+    **How the Project Operates:**  
+    Built with a decoupled architecture (`data_loader.py` for ingestion, `plot_utils.py` for Plotly charts, and `main.py` for Streamlit), executing all processing in-memory with reactive updates.
+    """)
+    
     # Main Dashboard Tabs (Includes dedicated Tab 7 for Abbreviations & Glossary)
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📊 Overview", 
@@ -468,6 +640,30 @@ def main():
     with tab1:
         st.header(f"📊 Overview & Summary Statistics — {dataset_name}")
         
+        # Dataset Information & Website Overview Card placed above summaries
+        with st.container(border=True):
+            col_info1, col_info2 = st.columns([1, 1], gap="medium")
+            with col_info1:
+                st.subheader("ℹ️ Dataset Information")
+                st.write(f"**Dataset Name**: `{dataset_name}`")
+                st.write(f"**Total Records**: `{len(df):,}`")
+                st.write(f"**Total Columns**: `{len(df.columns)}`")
+                if min_date and max_date:
+                    st.write(f"**Time Span**: `{min_date.date()}` to `{max_date.date()}`")
+                st.markdown(render_about_solar_hover_html(side="main"), unsafe_allow_html=True)
+            with col_info2:
+                st.subheader("🌐 Website Overview & Operation")
+                st.markdown("""
+                **How the Website Works:**  
+                Ingests raw solar and meteorological CSV data from any source (NASA POWER, NREL, pyranometer loggers). The app automatically strips preamble headers, detects delimiters, standardizes timestamps, and renders interactive analytical charts.
+
+                **How the Project Operates:**  
+                Powered by a modular Python engine:
+                - `src/data_loader.py`: Delimiter sniffer, header cleaner, sentinel replacer, datetime assembler.
+                - `src/plot_utils.py`: Interactive Plotly time-series, diurnal curves, and correlation heatmaps.
+                - `app/main.py`: In-memory reactive filtering and multi-tab exploration.
+                """)
+
         # Metric Definitions & Units Expander on Overview Tab
         with st.expander("📖 Metric Abbreviations & Full Names Reference", expanded=False):
             st.markdown("Quick reference table of abbreviations and full descriptive text:")

@@ -107,6 +107,8 @@ The dashboard provides the following interactive features:
 - **Metric Selection**: Multi-select to choose one or more metrics (GHI, DNI, DHI, Tamb, WS, etc.) for analysis (appears once data is uploaded)
 - **Date Range Filter**: Filter records interactively by date
 - **Dataset Information**: Summary record counts, column counts, and timestamp spans
+- **🌐 Website Overview**: Placed directly below Dataset Information in the sidebar and on the Overview tab, detailing how the website works (ingestion, cleaning, normalization, multi-tab exploration) and how the project operates (modular pipeline across `data_loader.py`, `plot_utils.py`, and `main.py`).
+- **ℹ️ "About Solar Data" Hover Feature**: Interactive floating hover card displaying instant overviews of the website, key solar metrics (GHI, DNI, DHI, meteorological factors), and project workflow on hover.
 - **Sidebar Abbreviations Glossary**: Quick expandable lookup for abbreviations while navigating any tab
 
 #### 📈 **Visualization & Analytics Tabs**

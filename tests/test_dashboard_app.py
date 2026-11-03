@@ -137,3 +137,74 @@ def test_nasa_power_csv_upload():
     assert len(at.sidebar.success) > 0
     assert "POWER_Daily.csv" in at.sidebar.success[0].value
 
+
+def test_about_solar_hover_and_overview_landing():
+    """
+    Verify that the 'About Solar Data' hover feature and Website Overview
+    are present on the initial landing page before data is uploaded.
+    """
+    at = AppTest.from_file(MAIN_APP_PATH, default_timeout=30)
+    at.run()
+    assert not at.exception
+
+    # Combine all markdown values
+    markdown_texts = [m.value for m in at.markdown]
+    combined_md = " ".join(markdown_texts)
+
+    # Verify "About Solar Data" hover markup is present
+    assert "About Solar Data" in combined_md
+    assert "solar-about-wrapper" in combined_md
+    assert "solar-about-card" in combined_md
+
+    # Verify descriptions of website, solar data, and how the project works
+    assert "The Website" in combined_md
+    assert "The Solar Data" in combined_md
+    assert "How the Project Works" in combined_md
+    assert "How the Website Works" in combined_md
+    assert "How the Project Operates" in combined_md
+
+
+def test_website_overview_below_dataset_information_after_upload():
+    """
+    Verify that after uploading a dataset:
+    1. 'ℹ️ Dataset Information' is rendered in the sidebar.
+    2. '🌐 Website Overview' is placed directly below 'ℹ️ Dataset Information' in the sidebar.
+    3. The 'About Solar Data' hover feature is included with website, solar data, and project operation descriptions.
+    4. Dataset Information & Website Overview are also displayed on Tab 1.
+    """
+    at = AppTest.from_file(MAIN_APP_PATH, default_timeout=30)
+    at.run()
+
+    # Upload test CSV
+    sidebar_uploaders = at.sidebar.file_uploader
+    assert len(sidebar_uploaders) > 0
+    sidebar_uploaders[0].upload(filename="custom_solar_test.csv", content=SAMPLE_CSV_BYTES).run()
+
+    assert not at.exception
+
+    # Check sidebar subheaders order: Dataset Information must come before Website Overview
+    sidebar_subheaders = [sh.value for sh in at.sidebar.subheader]
+    assert any("Dataset Information" in sh for sh in sidebar_subheaders), "Sidebar must contain Dataset Information"
+    assert any("Website Overview" in sh for sh in sidebar_subheaders), "Sidebar must contain Website Overview"
+
+    ds_info_idx = next(i for i, sh in enumerate(sidebar_subheaders) if "Dataset Information" in sh)
+    web_ov_idx = next(i for i, sh in enumerate(sidebar_subheaders) if "Website Overview" in sh)
+    assert web_ov_idx > ds_info_idx, "Website Overview must be placed below Dataset Information in the sidebar"
+
+    # Verify sidebar markdown contains operation descriptions
+    sidebar_md = " ".join([m.value for m in at.sidebar.markdown])
+    assert "How the Website Works" in sidebar_md
+    assert "How the Project Operates" in sidebar_md
+    assert "About Solar Data" in sidebar_md
+    assert "solar-about-card-sidebar" in sidebar_md
+
+    # Verify Tab 1 also contains Dataset Information & Website Overview
+    tab_subheaders = [sh.value for sh in at.subheader]
+    assert any("Dataset Information" in sh for sh in tab_subheaders)
+    assert any("Website Overview" in sh for sh in tab_subheaders)
+    main_md = " ".join([m.value for m in at.markdown])
+    assert "How the Website Works" in main_md
+    assert "How the Project Operates" in main_md
+
+
+
