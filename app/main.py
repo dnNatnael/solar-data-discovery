@@ -301,9 +301,75 @@ def render_about_solar_hover_html(side: str = "main") -> str:
             <p>
                 Operates via an automated, client-side data pipeline: CSV upload &rarr; intelligent delimiter sniffing & metadata preamble stripping &rarr; temporal standardization &rarr; dynamic metric discovery &rarr; multi-tab interactive Plotly analytics.
             </p>
+            <div class="section-title">📬 Questions & Contact</div>
+            <p>
+                Have questions or need assistance? Reach out to Natnael Yilma:<br>
+                📧 <a href="mailto:natnael.yilma27@gmail.com?subject=Question%20about%20Solar%20Data%20Discovery" target="_self" style="color: #90cdf4; text-decoration: underline;" title="Open default email application">natnael.yilma27@gmail.com</a><br>
+                📞 <a href="tel:+251929709562" target="_self" style="color: #90cdf4; text-decoration: underline;" title="Call or open mobile dialer">+251 929 709 562</a>
+            </p>
         </div>
     </div>
     """
+
+
+def render_contact_sidebar():
+    """Render author contact information in the sidebar with target='_self' to avoid 'Untitled' tabs"""
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📬 Questions & Contact")
+    st.sidebar.markdown("""
+    <div style="font-size: 0.88rem; line-height: 1.6;">
+        <p style="margin-bottom: 0.4rem; color: #475569;">Have questions or feedback about the dashboard?</p>
+        <div style="margin-bottom: 0.4rem;">
+            📧 <strong>Email:</strong><br>
+            <a href="mailto:natnael.yilma27@gmail.com?subject=Question%20about%20Solar%20Data%20Discovery" 
+               target="_self" 
+               style="color: #667eea; font-weight: 600; text-decoration: underline;" 
+               title="Open default email application">natnael.yilma27@gmail.com</a>
+            <span style="font-size: 0.78rem; opacity: 0.85;">
+                (<a href="https://mail.google.com/mail/?view=cm&fs=1&to=natnael.yilma27@gmail.com&su=Question%20about%20Solar%20Data%20Discovery" target="_blank" style="color: #667eea; text-decoration: none;">Gmail web</a>)
+            </span>
+        </div>
+        <div>
+            📞 <strong>Phone:</strong><br>
+            <a href="tel:+251929709562" 
+               target="_self" 
+               style="color: #667eea; font-weight: 600; text-decoration: underline;" 
+               title="Call or open mobile dialer">+251 929 709 562</a>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_footer():
+    """Render dashboard footer with version and author contact details"""
+    st.markdown("---")
+    st.markdown("""
+    <div class="footer">
+        <h3 style='color: #667eea; margin-bottom: 0.5rem;'>☀️ Solar Data Discovery</h3>
+        <p style='color: #555; font-size: 1rem; margin: 0.25rem 0;'>
+            Production Analytics Platform for Solar Radiation & Meteorological Datasets
+        </p>
+        <p style='color: #777; font-size: 0.85rem; margin: 0.25rem 0;'>
+            Compatible with Benin, Sierra Leone, Togo, and solar CSV datasets worldwide.
+        </p>
+        <div style="margin: 0.85rem auto; padding: 0.75rem 1.25rem; background: rgba(255, 255, 255, 0.75); border: 1px solid #cbd5e1; border-radius: 10px; display: inline-block; max-width: 90%; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+            <p style="font-weight: 600; color: #1e293b; margin: 0 0 0.35rem 0; font-size: 0.95rem;">
+                📬 Have questions, inquiries, or feedback?
+            </p>
+            <p style="color: #334155; margin: 0; font-size: 0.9rem;">
+                📧 Email: <a href="mailto:natnael.yilma27@gmail.com?subject=Question%20about%20Solar%20Data%20Discovery" target="_self" style="color: #667eea; font-weight: 600; text-decoration: underline;" title="Open default email application">natnael.yilma27@gmail.com</a>
+                <span style="font-size: 0.8rem; opacity: 0.85;">
+                    (<a href="https://mail.google.com/mail/?view=cm&fs=1&to=natnael.yilma27@gmail.com&su=Question%20about%20Solar%20Data%20Discovery" target="_blank" style="color: #667eea; text-decoration: none;">Gmail</a>)
+                </span>
+                &nbsp;&nbsp;•&nbsp;&nbsp;
+                📞 Phone: <a href="tel:+251929709562" target="_self" style="color: #667eea; font-weight: 600; text-decoration: underline;" title="Call or open mobile dialer">+251 929 709 562</a>
+            </p>
+        </div>
+        <p style='color: #94a3b8; font-size: 0.8rem; margin-top: 0.75rem;'>
+            Version 2.1.0 • Built with Streamlit, Plotly, and Pandas • Developed by <strong>Natnael Yilma</strong>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 def render_glossary_overview():
@@ -556,6 +622,8 @@ def main():
                - **📋 Data Table**: Raw record inspection and filtered CSV export.
                - **📖 Abbreviations & Glossary**: Complete metric dictionary and solar engineering terminology.
             """)
+        render_contact_sidebar()
+        render_footer()
         return
 
     # Data loaded successfully - show metric selection with full text
@@ -624,6 +692,7 @@ def main():
     **How the Project Operates:**  
     Built with a decoupled architecture (`data_loader.py` for ingestion, `plot_utils.py` for Plotly charts, and `main.py` for Streamlit), executing all processing in-memory with reactive updates.
     """)
+    render_contact_sidebar()
     
     # Main Dashboard Tabs (Includes dedicated Tab 7 for Abbreviations & Glossary)
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
@@ -1021,23 +1090,20 @@ def main():
         | **Solargis / Meteonorm** | `DateTime` / `Date/Time` | `GHI`, `DNI`, `TEMP`, `WS` | ✅ Auto-standardized |
         | **Custom Weather Stations / Inverters** | Any date or datetime format | Any numeric measurement columns | ✅ Dynamically Discovered |
         """)
+        
+        st.markdown("---")
+        st.markdown("### 📬 Questions & Inquiries")
+        st.markdown("""
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem; color: #166534; font-size: 0.95rem;">
+            <strong>📬 Have questions about this tool, feedback on data compatibility, or custom analysis requests?</strong><br>
+            Feel free to reach out via email: <a href="mailto:natnael.yilma27@gmail.com?subject=Question%20about%20Solar%20Data%20Discovery" target="_self" style="color: #15803d; font-weight: 700; text-decoration: underline;" title="Open default email application">natnael.yilma27@gmail.com</a>
+            <span style="font-size: 0.82rem;">(<a href="https://mail.google.com/mail/?view=cm&fs=1&to=natnael.yilma27@gmail.com&su=Question%20about%20Solar%20Data%20Discovery" target="_blank" style="color: #15803d; text-decoration: none;">open in Gmail</a>)</span>
+            or phone: <a href="tel:+251929709562" target="_self" style="color: #15803d; font-weight: 700; text-decoration: underline;" title="Call or open mobile dialer">+251 929 709 562</a>.
+        </div>
+        """, unsafe_allow_html=True)
 
-    # Footer
-    st.markdown("---")
-    st.markdown("""
-    <div class="footer">
-        <h3 style='color: #667eea; margin-bottom: 0.5rem;'>☀️ Solar Data Discovery</h3>
-        <p style='color: #555; font-size: 1rem; margin: 0.25rem 0;'>
-            Production Analytics Platform for Solar Radiation & Meteorological Datasets
-        </p>
-        <p style='color: #777; font-size: 0.85rem; margin: 0.25rem 0;'>
-            Compatible with Benin, Sierra Leone, Togo, and solar CSV datasets worldwide.
-        </p>
-        <p style='color: #999; font-size: 0.8rem; margin-top: 0.75rem;'>
-            Version 2.1.0 • Built with Streamlit, Plotly, and Pandas
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Global Footer
+    render_footer()
 
 
 if __name__ == "__main__":

@@ -207,4 +207,37 @@ def test_website_overview_below_dataset_information_after_upload():
     assert "How the Project Operates" in main_md
 
 
+def test_contact_information_present_landing_and_upload():
+    """
+    Verify that contact details (email: natnael.yilma27@gmail.com and phone: +251929709562)
+    are clearly present on both initial landing page and after CSV upload, and configured
+    with target='_self' so email and phone dialer open directly without 'Untitled' blank tabs.
+    """
+    at = AppTest.from_file(MAIN_APP_PATH, default_timeout=30)
+    at.run()
+    assert not at.exception
+
+    # Landing page check: sidebar & footer must contain contact info
+    all_landing_md = " ".join([m.value for m in at.markdown] + [m.value for m in at.sidebar.markdown])
+    assert "natnael.yilma27@gmail.com" in all_landing_md
+    assert "+251929709562" in all_landing_md.replace(" ", "")
+    assert 'href="mailto:natnael.yilma27@gmail.com' in all_landing_md
+    assert 'href="tel:+251929709562"' in all_landing_md
+    assert 'target="_self"' in all_landing_md
+
+    # Upload CSV check: sidebar, tabs, and footer must contain contact info
+    sidebar_uploaders = at.sidebar.file_uploader
+    sidebar_uploaders[0].upload(filename="contact_test.csv", content=SAMPLE_CSV_BYTES).run()
+    assert not at.exception
+
+    all_uploaded_md = " ".join([m.value for m in at.markdown] + [m.value for m in at.sidebar.markdown])
+    assert "natnael.yilma27@gmail.com" in all_uploaded_md
+    assert "+251929709562" in all_uploaded_md.replace(" ", "")
+    assert 'href="mailto:natnael.yilma27@gmail.com' in all_uploaded_md
+    assert 'href="tel:+251929709562"' in all_uploaded_md
+    assert 'target="_self"' in all_uploaded_md
+
+
+
+
 

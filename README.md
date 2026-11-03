@@ -303,9 +303,14 @@ Contributions are welcome! Please:
 
 This project is part of the 10 Academy KAIM program.
 
-## 👥 Authors
+## 👥 Authors & Contact
 
-- [Natnael Yilma](https://github.com/dnNatnael)
+- **Author**: Natnael Yilma
+- **GitHub**: [@dnNatnael](https://github.com/dnNatnael)
+- **Email**: [natnael.yilma27@gmail.com](mailto:natnael.yilma27@gmail.com)
+- **Phone**: [+251 929 709 562](tel:+251929709562)
+
+If you have questions, inquiries, or feedback while using the solar data discovery dashboard, feel free to reach out via email or phone.
 
 ## 🙏 Acknowledgments
 
